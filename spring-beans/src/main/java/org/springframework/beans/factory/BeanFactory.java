@@ -116,6 +116,10 @@ import org.springframework.lang.Nullable;
 public interface BeanFactory {
 
 	/**
+	 * 使用转义字符‘&’来得到Factory本身，用来区分通过容器获取的FactoryBean产生的对象和FactoryBean本身
+	 * 在Spring中，所有的Bean都是由BeanFactory--也就是IOC容器 来管理的</p>
+	 * 但对FactoryBean而言，这个Bean不是简单的Bean，而是一个能产生或者修饰对象生成的工厂bean</p>
+	 * <p>
 	 * Used to dereference a {@link FactoryBean} instance and distinguish it from
 	 * beans <i>created</i> by the FactoryBean. For example, if the bean named
 	 * {@code myJndiObject} is a FactoryBean, getting {@code &myJndiObject}
