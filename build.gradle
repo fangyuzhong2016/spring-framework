@@ -14,8 +14,8 @@ buildscript {
 plugins {
 	id "com.gradle.build-scan" version "1.8"
 	id "io.spring.dependency-management" version "1.0.3.RELEASE" apply false
-	id "org.jetbrains.kotlin.jvm" version "1.2.20" apply false
-	id "org.jetbrains.dokka" version "0.9.15"
+	id "org.jetbrains.kotlin.jvm" version "1.2.30" apply false
+	id "org.jetbrains.dokka" version "0.9.16"
 	id "org.asciidoctor.convert" version "1.5.6"
 }
 
@@ -43,24 +43,24 @@ configure(allprojects) { project ->
 
 	ext.aspectjVersion       = "1.8.13"
 	ext.freemarkerVersion    = "2.3.27-incubating"
-	ext.groovyVersion        = "2.4.13"
+	ext.groovyVersion        = "2.4.14"
 	ext.hsqldbVersion        = "2.4.0"
-	ext.jackson2Version      = "2.9.3"
+	ext.jackson2Version      = "2.9.4"
 	ext.jettyVersion         = "9.4.8.v20171121"
 	ext.junitJupiterVersion  = "5.0.3"
 	ext.junitPlatformVersion = "1.0.3"
 	ext.junitVintageVersion  = "4.12.3"
-	ext.kotlinVersion        = "1.2.20"
-	ext.log4jVersion         = "2.10.0"
-	ext.nettyVersion         = "4.1.19.Final"
-	ext.reactorVersion       = "Bismuth-BUILD-SNAPSHOT"
-	ext.rxjavaVersion        = "1.3.4"
+	ext.kotlinVersion        = "1.2.30"
+	ext.log4jVersion         = "2.11.0"
+	ext.nettyVersion         = "4.1.22.Final"
+	ext.reactorVersion       = "Bismuth-SR7"
+	ext.rxjavaVersion        = "1.3.6"
 	ext.rxjavaAdapterVersion = "1.2.1"
-	ext.rxjava2Version       = "2.1.8"
-	ext.slf4jVersion         = "1.7.25"
+	ext.rxjava2Version       = "2.1.10"
+	ext.slf4jVersion         = "1.7.25"	 // spring-jcl + consistent 3rd party deps
 	ext.tiles3Version        = "3.0.8"
-	ext.tomcatVersion        = "8.5.24"
-	ext.undertowVersion      = "1.4.22.Final"
+	ext.tomcatVersion        = "8.5.29"
+	ext.undertowVersion      = "1.4.23.Final"
 
 	ext.gradleScriptDir = "${rootProject.projectDir}/gradle"
 
@@ -77,7 +77,6 @@ configure(allprojects) { project ->
 			apiVersion = "1.1"
 			languageVersion = "1.1"
 		}
-
 	}
 	compileTestKotlin {
 		kotlinOptions {
@@ -89,6 +88,15 @@ configure(allprojects) { project ->
 	configurations.all {
 		// Check for updates every build
 		resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+
+		// Consistent slf4j version (e.g. clashes between slf4j versions)
+		resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+			if (details.requested.group == 'org.slf4j') {
+				details.useVersion slf4jVersion
+			}
+		}
+
+		exclude group: "org.slf4j", module: "jcl-over-slf4j"
 	}
 
 	def commonCompilerArgs =
@@ -132,7 +140,6 @@ configure(allprojects) { project ->
 	repositories {
 		maven { url "https://repo.spring.io/libs-release" }
 		maven { url "https://repo.spring.io/milestone" }  // for AspectJ 1.9 beta
-		maven { url "https://repo.spring.io/snapshot" }   // for Reactor snapshots
 	}
 
 	dependencies {
@@ -150,6 +157,8 @@ configure(allprojects) { project ->
 		testCompile("org.hamcrest:hamcrest-all:1.3")
 		testCompile("org.xmlunit:xmlunit-matchers:2.3.0")
 		testRuntime("org.apache.logging.log4j:log4j-core:${log4jVersion}")
+		testRuntime("org.apache.logging.log4j:log4j-slf4j-impl:${log4jVersion}")
+		testRuntime("org.apache.logging.log4j:log4j-jul:${log4jVersion}")
         // JSR-305 only used for non-required meta-annotations
 		compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 		testCompileOnly("com.google.code.findbugs:jsr305:3.0.2")
@@ -264,7 +273,7 @@ configure(rootProject) {
 		testCompile("javax.servlet:javax.servlet-api:3.1.0")
 		testCompile("org.aspectj:aspectjweaver:${aspectjVersion}")
 		testCompile("org.hsqldb:hsqldb:${hsqldbVersion}")
-		testCompile("org.hibernate:hibernate-core:5.1.10.Final")
+		testCompile("org.hibernate:hibernate-core:5.1.12.Final")
 	}
 
 	artifacts {

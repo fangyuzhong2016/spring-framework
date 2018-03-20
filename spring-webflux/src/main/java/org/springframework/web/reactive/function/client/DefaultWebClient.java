@@ -65,6 +65,8 @@ import org.springframework.web.util.UriBuilderFactory;
  */
 class DefaultWebClient implements WebClient {
 
+	private static final String URI_TEMPLATE_ATTRIBUTE = WebClient.class.getName() + ".uriTemplate";
+
 	private static final Mono<ClientResponse> NO_HTTP_CLIENT_RESPONSE_ERROR = Mono.error(
 			new IllegalStateException("The underlying HTTP client completed without emitting a response."));
 
@@ -161,8 +163,8 @@ class DefaultWebClient implements WebClient {
 		@Nullable
 		private BodyInserter<?, ? super ClientHttpRequest> inserter;
 
-		@Nullable
-		private Map<String, Object> attributes;
+		private final Map<String, Object> attributes = new LinkedHashMap<>(4);
+
 
 		DefaultRequestBodyUriSpec(HttpMethod httpMethod) {
 			this.httpMethod = httpMethod;
@@ -170,11 +172,13 @@ class DefaultWebClient implements WebClient {
 
 		@Override
 		public RequestBodySpec uri(String uriTemplate, Object... uriVariables) {
+			attribute(URI_TEMPLATE_ATTRIBUTE, uriTemplate);
 			return uri(uriBuilderFactory.expand(uriTemplate, uriVariables));
 		}
 
 		@Override
 		public RequestBodySpec uri(String uriTemplate, Map<String, ?> uriVariables) {
+			attribute(URI_TEMPLATE_ATTRIBUTE, uriTemplate);
 			return uri(uriBuilderFactory.expand(uriTemplate, uriVariables));
 		}
 
@@ -203,13 +207,6 @@ class DefaultWebClient implements WebClient {
 			return this.cookies;
 		}
 
-		private Map<String, Object> getAttributes() {
-			if (this.attributes == null) {
-				this.attributes = new LinkedHashMap<>(4);
-			}
-			return this.attributes;
-		}
-
 		@Override
 		public DefaultRequestBodyUriSpec header(String headerName, String... headerValues) {
 			for (String headerValue : headerValues) {
@@ -227,14 +224,14 @@ class DefaultWebClient implements WebClient {
 
 		@Override
 		public RequestBodySpec attribute(String name, Object value) {
-			getAttributes().put(name, value);
+			this.attributes.put(name, value);
 			return this;
 		}
 
 		@Override
 		public RequestBodySpec attributes(Consumer<Map<String, Object>> attributesConsumer) {
 			Assert.notNull(attributesConsumer, "'attributesConsumer' must not be null");
-			attributesConsumer.accept(getAttributes());
+			attributesConsumer.accept(this.attributes);
 			return this;
 		}
 
@@ -327,10 +324,10 @@ class DefaultWebClient implements WebClient {
 
 		private ClientRequest.Builder initRequestBuilder() {
 			URI uri = this.uri != null ? this.uri : uriBuilderFactory.expand("");
-			return ClientRequest.method(this.httpMethod, uri)
+			return ClientRequest.create(this.httpMethod, uri)
 					.headers(headers -> headers.addAll(initHeaders()))
 					.cookies(cookies -> cookies.addAll(initCookies()))
-					.attributes(attributes -> attributes.putAll(getAttributes()));
+					.attributes(attributes -> attributes.putAll(this.attributes));
 		}
 
 		private HttpHeaders initHeaders() {
@@ -457,7 +454,7 @@ class DefaultWebClient implements WebClient {
 
 		private static Mono<WebClientResponseException> createResponseException(ClientResponse response) {
 
-			return DataBufferUtils.compose(response.body(BodyExtractors.toDataBuffers()))
+			return DataBufferUtils.join(response.body(BodyExtractors.toDataBuffers()))
 					.map(dataBuffer -> {
 						byte[] bytes = new byte[dataBuffer.readableByteCount()];
 						dataBuffer.read(bytes);

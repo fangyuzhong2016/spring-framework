@@ -365,7 +365,7 @@ public class ResolvableType implements Serializable {
 		if (this == NONE) {
 			return false;
 		}
-		return (((this.type instanceof Class && ((Class<?>) this.type).isArray())) ||
+		return ((this.type instanceof Class && ((Class<?>) this.type).isArray()) ||
 				this.type instanceof GenericArrayType || resolveType().isArray());
 	}
 
@@ -1047,7 +1047,7 @@ public class ResolvableType implements Serializable {
 		for (int i = 0; i < generics.length; i++) {
 			ResolvableType generic = generics[i];
 			Type argument = (generic != null ? generic.getType() : null);
-			arguments[i] = (argument != null ? argument : variables[i]);
+			arguments[i] = (argument != null && !(argument instanceof TypeVariable) ? argument : variables[i]);
 		}
 
 		ParameterizedType syntheticType = new SyntheticParameterizedType(clazz, arguments);
@@ -1468,8 +1468,9 @@ public class ResolvableType implements Serializable {
 		@Nullable
 		public ResolvableType resolveVariable(TypeVariable<?> variable) {
 			for (int i = 0; i < this.variables.length; i++) {
-				if (ObjectUtils.nullSafeEquals(SerializableTypeWrapper.unwrap(this.variables[i]),
-						SerializableTypeWrapper.unwrap(variable))) {
+				TypeVariable<?> v1 = SerializableTypeWrapper.unwrap(this.variables[i]);
+				TypeVariable<?> v2 = SerializableTypeWrapper.unwrap(variable);
+				if (ObjectUtils.nullSafeEquals(v1, v2)) {
 					return this.generics[i];
 				}
 			}
@@ -1492,6 +1493,22 @@ public class ResolvableType implements Serializable {
 		public SyntheticParameterizedType(Type rawType, Type[] typeArguments) {
 			this.rawType = rawType;
 			this.typeArguments = typeArguments;
+		}
+
+		@Override
+		public String getTypeName() {
+			StringBuilder result = new StringBuilder(this.rawType.getTypeName());
+			if (this.typeArguments.length > 0) {
+				result.append('<');
+				for (int i = 0; i < this.typeArguments.length; i++) {
+					if (i > 0) {
+						result.append(", ");
+					}
+					result.append(this.typeArguments[i].getTypeName());
+				}
+				result.append('>');
+			}
+			return result.toString();
 		}
 
 		@Override
@@ -1526,6 +1543,11 @@ public class ResolvableType implements Serializable {
 		@Override
 		public int hashCode() {
 			return (this.rawType.hashCode() * 31 + Arrays.hashCode(this.typeArguments));
+		}
+
+		@Override
+		public String toString() {
+			return getTypeName();
 		}
 	}
 

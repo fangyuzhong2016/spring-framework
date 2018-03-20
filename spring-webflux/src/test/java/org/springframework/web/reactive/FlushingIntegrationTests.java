@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * @author Sebastien Deleuze
@@ -53,7 +53,7 @@ public class FlushingIntegrationTests extends AbstractHttpHandlerIntegrationTest
 
 
 	@Test
-	public void writeAndFlushWith() throws Exception {
+	public void writeAndFlushWith() {
 		Mono<String> result = this.webClient.get()
 				.uri("/write-and-flush")
 				.retrieve()
@@ -64,7 +64,7 @@ public class FlushingIntegrationTests extends AbstractHttpHandlerIntegrationTest
 		StepVerifier.create(result)
 				.expectNext("data0data1")
 				.expectComplete()
-				.verify(Duration.ofSeconds(5L));
+				.verify(Duration.ofSeconds(10L));
 	}
 
 	@Test  // SPR-14991
@@ -79,7 +79,7 @@ public class FlushingIntegrationTests extends AbstractHttpHandlerIntegrationTest
 			StepVerifier.create(result)
 					.consumeNextWith(value -> assertTrue(value.length() == 20000 * "0123456789".length()))
 					.expectComplete()
-					.verify(Duration.ofSeconds(5L));
+					.verify(Duration.ofSeconds(10L));
 		}
 		catch (AssertionError err) {
 			String os = System.getProperty("os.name").toLowerCase();
@@ -103,7 +103,7 @@ public class FlushingIntegrationTests extends AbstractHttpHandlerIntegrationTest
 		StepVerifier.create(result)
 				.expectNextMatches(s -> s.startsWith("0123456789"))
 				.expectComplete()
-				.verify(Duration.ofSeconds(5L));
+				.verify(Duration.ofSeconds(10L));
 	}
 
 
@@ -119,28 +119,24 @@ public class FlushingIntegrationTests extends AbstractHttpHandlerIntegrationTest
 		public Mono<Void> handle(ServerHttpRequest request, ServerHttpResponse response) {
 			String path = request.getURI().getPath();
 			if (path.endsWith("write-and-flush")) {
-				Flux<Publisher<DataBuffer>> responseBody = Flux
-						.interval(Duration.ofMillis(50))
-						.map(l -> toDataBuffer("data" + l, response.bufferFactory()))
-						.take(2)
+				Flux<Publisher<DataBuffer>> responseBody = interval(Duration.ofMillis(50), 2)
+						.map(l -> toDataBuffer("data" + l + "\n", response.bufferFactory()))
 						.map(Flux::just);
-				responseBody = responseBody.concatWith(Flux.never());
-				return response.writeAndFlushWith(responseBody);
+				return response.writeAndFlushWith(responseBody.concatWith(Flux.never()));
 			}
 			else if (path.endsWith("write-and-complete")) {
 				Flux<DataBuffer> responseBody = Flux
 						.just("0123456789")
 						.repeat(20000)
-						.map(value -> toDataBuffer(value, response.bufferFactory()));
+						.map(value -> toDataBuffer(value + "\n", response.bufferFactory()));
 				return response.writeWith(responseBody);
 			}
 			else if (path.endsWith("write-and-never-complete")) {
 				Flux<DataBuffer> responseBody = Flux
 						.just("0123456789")
 						.repeat(20000)
-						.map(value -> toDataBuffer(value, response.bufferFactory()))
-						.mergeWith(Flux.never());
-				return response.writeWith(responseBody);
+						.map(value -> toDataBuffer(value + "\n", response.bufferFactory()));
+				return response.writeWith(responseBody.mergeWith(Flux.never()));
 			}
 			return response.writeWith(Flux.empty());
 		}

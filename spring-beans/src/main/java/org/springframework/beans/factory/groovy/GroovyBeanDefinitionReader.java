@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -237,6 +237,7 @@ public class GroovyBeanDefinitionReader extends AbstractBeanDefinitionReader imp
 		}
 
 		Closure beans = new Closure(this) {
+			@Override
 			public Object call(Object[] args) {
 				invokeBeanDefiningClosure((Closure) args[0]);
 				return null;
@@ -380,10 +381,8 @@ public class GroovyBeanDefinitionReader extends AbstractBeanDefinitionReader imp
 				refName = args[0].toString();
 			}
 			boolean parentRef = false;
-			if (args.length > 1) {
-				if (args[1] instanceof Boolean) {
-					parentRef = (Boolean) args[1];
-				}
+			if (args.length > 1 && args[1] instanceof Boolean) {
+				parentRef = (Boolean) args[1];
 			}
 			return new RuntimeBeanReference(refName, parentRef);
 		}
@@ -524,10 +523,10 @@ public class GroovyBeanDefinitionReader extends AbstractBeanDefinitionReader imp
 			Closure callable = (Closure) args[args.length - 1];
 			callable.setDelegate(this);
 			callable.setResolveStrategy(Closure.DELEGATE_FIRST);
-			callable.call(new Object[]{currentBeanDefinition});
+			callable.call(this.currentBeanDefinition);
 		}
 
-		GroovyBeanDefinitionWrapper beanDefinition = currentBeanDefinition;
+		GroovyBeanDefinitionWrapper beanDefinition = this.currentBeanDefinition;
 		this.currentBeanDefinition = null;
 		beanDefinition.getBeanDefinition().setAttribute(GroovyBeanDefinitionWrapper.class.getName(), beanDefinition);
 		getRegistry().registerBeanDefinition(beanName, beanDefinition.getBeanDefinition());
@@ -815,14 +814,17 @@ public class GroovyBeanDefinitionReader extends AbstractBeanDefinitionReader imp
 				return retVal;
 			}
 
+			@Override
 			public Object invokeMethod(String name, Object args) {
 				return InvokerHelper.invokeMethod(this.propertyValue, name, args);
 			}
 
+			@Override
 			public Object getProperty(String name) {
 				return InvokerHelper.getProperty(this.propertyValue, name);
 			}
 
+			@Override
 			public void setProperty(String name, Object value) {
 				InvokerHelper.setProperty(this.propertyValue, name, value);
 			}

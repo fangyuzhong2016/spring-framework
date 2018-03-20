@@ -29,7 +29,6 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRegistration;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -52,8 +51,8 @@ import org.springframework.util.Assert;
  * @author Arjen Poutsma
  * @author Rossen Stoyanchev
  * @since 5.0
+ * @see org.springframework.web.server.adapter.AbstractReactiveWebInitializer
  */
-@WebServlet(asyncSupported = true)
 @SuppressWarnings("serial")
 public class ServletHttpHandlerAdapter implements Servlet {
 
@@ -168,7 +167,7 @@ public class ServletHttpHandlerAdapter implements Servlet {
 		ServerHttpRequest httpRequest = createRequest(((HttpServletRequest) request), asyncContext);
 		ServerHttpResponse httpResponse = createResponse(((HttpServletResponse) response), asyncContext);
 
-		if (HttpMethod.HEAD.equals(httpRequest.getMethod())) {
+		if (httpRequest.getMethod() == HttpMethod.HEAD) {
 			httpResponse = new HttpHeadResponseDecorator(httpResponse);
 		}
 
@@ -254,7 +253,7 @@ public class ServletHttpHandlerAdapter implements Servlet {
 		public void onComplete(AsyncEvent event) {
 			// no-op
 		}
-	};
+	}
 
 
 	private class HandlerResultSubscriber implements Subscriber<Void> {

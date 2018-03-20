@@ -140,7 +140,16 @@ public interface DataBuffer {
 	DataBuffer writePosition(int writePosition);
 
 	/**
-	 * Read a single byte from the current reading position of this data buffer.
+	 * Read a single byte at the given index from this data buffer.
+	 * @param index the index at which the byte will be read
+	 * @return the byte at the given index
+	 * @throws IndexOutOfBoundsException when {@code index} is out of bounds
+	 * @since 5.0.4
+	 */
+	byte getByte(int index);
+
+	/**
+	 * Read a single byte from the current reading position from this data buffer.
 	 * @return the byte at this buffer's current reading position
 	 */
 	byte read();
@@ -239,10 +248,24 @@ public interface DataBuffer {
 
 	/**
 	 * Expose this buffer's data as an {@link InputStream}. Both data and read position are
-	 * shared between the returned stream and this data buffer.
+	 * shared between the returned stream and this data buffer. The underlying buffer will
+	 * <strong>not</strong> be {@linkplain DataBufferUtils#release(DataBuffer) released} when the
+	 * input stream is {@linkplain InputStream#close() closed}.
 	 * @return this data buffer as an input stream
+	 * @see #asInputStream(boolean)
 	 */
 	InputStream asInputStream();
+
+	/**
+	 * Expose this buffer's data as an {@link InputStream}. Both data and read position are
+	 * shared between the returned stream and this data buffer.
+	 * @param releaseOnClose whether the underlying buffer will be
+	 * {@linkplain DataBufferUtils#release(DataBuffer) released} when the input stream is
+	 * {@linkplain InputStream#close() closed}.
+	 * @return this data buffer as an input stream
+	 * @since 5.0.4
+	 */
+	InputStream asInputStream(boolean releaseOnClose);
 
 	/**
 	 * Expose this buffer's data as an {@link OutputStream}. Both data and write position are

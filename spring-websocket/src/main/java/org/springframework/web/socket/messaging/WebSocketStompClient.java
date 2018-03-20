@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,16 +73,15 @@ public class WebSocketStompClient extends StompClientSupport implements SmartLif
 
 	private static final Log logger = LogFactory.getLog(WebSocketStompClient.class);
 
-
 	private final WebSocketClient webSocketClient;
 
 	private int inboundMessageSizeLimit = 64 * 1024;
 
 	private boolean autoStartup = true;
 
-	private boolean running = false;
-
 	private int phase = Integer.MAX_VALUE;
+
+	private volatile boolean running = false;
 
 
 	/**
@@ -422,21 +421,18 @@ public class WebSocketStompClient extends StompClientSupport implements SmartLif
 		public void onWriteInactivity(final Runnable runnable, final long duration) {
 			Assert.state(getTaskScheduler() != null, "No TaskScheduler configured");
 			this.lastWriteTime = System.currentTimeMillis();
-			this.inactivityTasks.add(getTaskScheduler().scheduleWithFixedDelay(new Runnable() {
-				@Override
-				public void run() {
-					if (System.currentTimeMillis() - lastWriteTime > duration) {
-						try {
-							runnable.run();
-						}
-						catch (Throwable ex) {
-							if (logger.isDebugEnabled()) {
-								logger.debug("WriteInactivityTask failure", ex);
-							}
-						}
-					}
-				}
-			}, duration / 2));
+			this.inactivityTasks.add(getTaskScheduler().scheduleWithFixedDelay(() -> {
+                if (System.currentTimeMillis() - lastWriteTime > duration) {
+                    try {
+                        runnable.run();
+                    }
+                    catch (Throwable ex) {
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("WriteInactivityTask failure", ex);
+                        }
+                    }
+                }
+            }, duration / 2));
 		}
 
 		@Override

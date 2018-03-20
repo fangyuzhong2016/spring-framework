@@ -172,7 +172,7 @@ public class SqlParameter {
 
 	/**
 	 * Return whether this parameter is an implicit return parameter used during the
-	 * results preocessing of the CallableStatement.getMoreResults/getUpdateCount.
+	 * results processing of {@code CallableStatement.getMoreResults/getUpdateCount}.
 	 * <p>This implementation always returns {@code false}.
 	 */
 	public boolean isResultsParameter() {
@@ -185,15 +185,12 @@ public class SqlParameter {
 	 * to a List of SqlParameter objects as used in this package.
 	 */
 	public static List<SqlParameter> sqlTypesToAnonymousParameterList(@Nullable int... types) {
-		List<SqlParameter> result;
-		if (types != null) {
-			result = new ArrayList<>(types.length);
-			for (int type : types) {
-				result.add(new SqlParameter(type));
-			}
+		if (types == null) {
+			return new LinkedList<>();
 		}
-		else {
-			result = new LinkedList<>();
+		List<SqlParameter> result = new ArrayList<>(types.length);
+		for (int type : types) {
+			result.add(new SqlParameter(type));
 		}
 		return result;
 	}

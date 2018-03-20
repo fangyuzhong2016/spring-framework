@@ -183,6 +183,27 @@ public class DataBufferTests extends AbstractDataBufferAllocatingTestCase {
 	}
 
 	@Test
+	public void inputStreamReleaseOnClose() throws IOException {
+		DataBuffer buffer = createDataBuffer(3);
+		byte[] bytes = {'a', 'b', 'c'};
+		buffer.write(bytes);
+
+		InputStream inputStream = buffer.asInputStream(true);
+
+		try {
+			byte[] result = new byte[3];
+			int len = inputStream.read(result);
+			assertEquals(3, len);
+			assertArrayEquals(bytes, result);
+		} finally {
+			inputStream.close();
+		}
+
+		// AbstractDataBufferAllocatingTestCase.LeakDetector will verify the buffer's release
+
+	}
+
+	@Test
 	public void outputStream() throws IOException {
 		DataBuffer buffer = createDataBuffer(4);
 		buffer.write((byte) 'a');
@@ -480,8 +501,8 @@ public class DataBufferTests extends AbstractDataBufferAllocatingTestCase {
 	}
 
 	@Test
-	public void composite() {
-		DataBuffer composite = this.bufferFactory.compose(Arrays.asList(stringBuffer("a"),
+	public void join() {
+		DataBuffer composite = this.bufferFactory.join(Arrays.asList(stringBuffer("a"),
 				stringBuffer("b"), stringBuffer("c")));
 		assertEquals(3, composite.readableByteCount());
 		byte[] bytes = new byte[3];
@@ -492,5 +513,28 @@ public class DataBufferTests extends AbstractDataBufferAllocatingTestCase {
 		release(composite);
 	}
 
+	@Test
+	public void getByte() {
+		DataBuffer buffer = stringBuffer("abc");
+
+		assertEquals('a', buffer.getByte(0));
+		assertEquals('b', buffer.getByte(1));
+		assertEquals('c', buffer.getByte(2));
+		try {
+			buffer.getByte(-1);
+			fail("IndexOutOfBoundsException expected");
+		}
+		catch (IndexOutOfBoundsException ignored) {
+		}
+
+		try {
+			buffer.getByte(3);
+			fail("IndexOutOfBoundsException expected");
+		}
+		catch (IndexOutOfBoundsException ignored) {
+		}
+
+		release(buffer);
+	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -199,12 +199,10 @@ public class MockHttpServletResponse implements HttpServletResponse {
 	}
 
 	public byte[] getContentAsByteArray() {
-		flushBuffer();
 		return this.content.toByteArray();
 	}
 
 	public String getContentAsString() throws UnsupportedEncodingException {
-		flushBuffer();
 		return (this.characterEncoding != null ?
 				this.content.toString(this.characterEncoding) : this.content.toString());
 	}
@@ -359,7 +357,7 @@ public class MockHttpServletResponse implements HttpServletResponse {
 	}
 
 	public Cookie[] getCookies() {
-		return this.cookies.toArray(new Cookie[this.cookies.size()]);
+		return this.cookies.toArray(new Cookie[0]);
 	}
 
 	@Nullable
@@ -719,7 +717,7 @@ public class MockHttpServletResponse implements HttpServletResponse {
 		}
 
 		@Override
-		public void write(char buf[], int off, int len) {
+		public void write(char[] buf, int off, int len) {
 			super.write(buf, off, len);
 			super.flush();
 			setCommittedIfBufferSizeExceeded();

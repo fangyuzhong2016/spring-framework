@@ -47,10 +47,10 @@ import org.springframework.web.server.ServerWebExchange;
  */
 public final class ProducesRequestCondition extends AbstractRequestCondition<ProducesRequestCondition> {
 
-	private final static ProducesRequestCondition PRE_FLIGHT_MATCH = new ProducesRequestCondition();
+	private static final ProducesRequestCondition PRE_FLIGHT_MATCH = new ProducesRequestCondition();
 
 
-	private final List<ProduceMediaTypeExpression> MEDIA_TYPE_ALL_LIST =
+	private final List<ProduceMediaTypeExpression> mediaTypeAllList =
 			Collections.singletonList(new ProduceMediaTypeExpression("*/*"));
 
 	private final List<ProduceMediaTypeExpression> expressions;
@@ -147,6 +147,7 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	/**
 	 * Whether the condition has any media type expressions.
 	 */
+	@Override
 	public boolean isEmpty() {
 		return this.expressions.isEmpty();
 	}
@@ -291,7 +292,7 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	 * with a {@code MediaType_ALL} expression.
 	 */
 	private List<ProduceMediaTypeExpression> getExpressionsToCompare() {
-		return (this.expressions.isEmpty() ? MEDIA_TYPE_ALL_LIST : this.expressions);
+		return (this.expressions.isEmpty() ? mediaTypeAllList  : this.expressions);
 	}
 
 

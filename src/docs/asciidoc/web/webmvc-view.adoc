@@ -1,54 +1,50 @@
 [[mvc-view]]
 = View Technologies
+[.small]#<<web-reactive.adoc#webflux-view,Same in Spring WebFlux>>#
 
-
-
-
-[[mvc-view-introduction]]
-== Introduction
-
-One of the areas in which Spring excels is in the separation of view technologies from
-the rest of the MVC framework. For example, deciding to use Groovy Markup Templates
-or Thymeleaf in place of an existing JSP is primarily a matter of configuration.
-This chapter covers the major view technologies that work with Spring and touches
-briefly on how to add new ones. This chapter assumes you are already familiar with
-<<mvc-viewresolver>> which covers the basics of how views in general are coupled
-to the MVC framework.
+The use of view technologies in Spring MVC is pluggable, whether you decide to
+use Thymeleaf, Groovy Markup Templates, JSPs, or other, is primarily a matter of a
+configuration change. This chapter covers view technologies integrated with Spring MVC.
+We assume you are already familiar with <<mvc-viewresolver>>.
 
 
 
 
 [[mvc-view-thymeleaf]]
 == Thymeleaf
+[.small]#<<web-reactive.adoc#webflux-view-thymeleaf,Same in Spring WebFlux>>#
 
-http://www.thymeleaf.org/[Thymeleaf] is a good example of a view technology fitting
-perfectly in the MVC framework. Support for this integration is not provided by
-the Spring team but by the Thymeleaf team itself.
+Thymeleaf is modern server-side Java template engine that emphasizes natural HTML
+templates that can be previewed in a browser by double-clicking, which is very
+helpful for independent work on UI templates, e.g. by designer, without the need for a
+running server. If you're looking to replace JSPs, Thymeleaf offers one of the most
+extensive set of features that will make such a transition easier. Thymeleaf is actively
+developed and maintained. For a more complete introduction see the
+http://www.thymeleaf.org/[Thymeleaf] project home page.
 
-Configuring Thymeleaf for Spring usually requires a few beans defined, like a
-`ServletContextTemplateResolver`, a `SpringTemplateEngine` and a `ThymeleafViewResolver`.
-Please refer to the http://www.thymeleaf.org/documentation.html[Thymeleaf+Spring]
-documentation section for more details.
-
-
-
-
-[[mvc-view-groovymarkup]]
-== Groovy Markup
-
-The http://groovy-lang.org/templating.html#_the_markuptemplateengine[Groovy Markup Template Engine]
-is another view technology, supported by Spring. This template engine is a template engine primarily
-aimed at generating XML-like markup (XML, XHTML, HTML5, ...​), but that can be used to generate any
-text based content.
-
-This requires Groovy 2.3.1+ on the classpath.
+The Thymeleaf integration with Spring MVC is managed by the Thymeleaf project. The
+configuration involves a few bean declarations such as
+`ServletContextTemplateResolver`, `SpringTemplateEngine`, and `ThymeleafViewResolver`.
+See http://www.thymeleaf.org/documentation.html[Thymeleaf+Spring] for more details.
 
 
 
-[[mvc-view-groovymarkup-configuration]]
-=== Configuration
 
-Configuring the Groovy Markup Template Engine is quite easy:
+[[mvc-view-freemarker]]
+== FreeMarker
+[.small]#<<web-reactive.adoc#webflux-view-freemarker,Same in Spring WebFlux>>#
+
+http://www.freemarker.org[Apache FreeMarker] is a template engine for generating any
+kind of text output from HTML to email, and others. The Spring Framework has a built-in
+integration for using Spring MVC with FreeMarker templates.
+
+
+
+[[mvc-view-freemarker-contextconfig]]
+=== View config
+[.small]#<<web-reactive.adoc#webflux-view-freemarker-contextconfig,Same in Spring WebFlux>>#
+
+To configure FreeMarker as a view technology:
 
 [source,java,indent=0]
 [subs="verbatim,quotes"]
@@ -59,19 +55,21 @@ Configuring the Groovy Markup Template Engine is quite easy:
 
 		@Override
 		public void configureViewResolvers(ViewResolverRegistry registry) {
-			registry.groovy();
+			registry.freemarker();
 		}
 
+		// Configure FreeMarker...
+
 		@Bean
-		public GroovyMarkupConfigurer groovyMarkupConfigurer() {
-			GroovyMarkupConfigurer configurer = new GroovyMarkupConfigurer();
-			configurer.setResourceLoaderPath("/WEB-INF/");
+		public FreeMarkerConfigurer freeMarkerConfigurer() {
+			FreeMarkerConfigurer configurer = new FreeMarkerConfigurer();
+			configurer.setTemplateLoaderPath("/WEB-INF/freemarker");
 			return configurer;
 		}
 	}
 ----
 
-The XML counterpart using the MVC namespace is:
+To configure the same in XML:
 
 [source,xml,indent=0]
 [subs="verbatim,quotes"]
@@ -79,103 +77,34 @@ The XML counterpart using the MVC namespace is:
 	<mvc:annotation-driven/>
 
 	<mvc:view-resolvers>
-		<mvc:groovy/>
+		<mvc:freemarker/>
 	</mvc:view-resolvers>
 
-	<mvc:groovy-configurer resource-loader-path="/WEB-INF/"/>
+	<!-- Configure FreeMarker... -->
+	<mvc:freemarker-configurer>
+		<mvc:template-loader-path location="/WEB-INF/freemarker"/>
+	</mvc:freemarker-configurer>
 ----
 
-
-
-[[mvc-view-groovymarkup-example]]
-=== Example
-
-Unlike traditional template engines, this one relies on a DSL that uses the builder syntax.
-Here is a sample template for an HTML page:
-
-[source,groovy,indent=0]
-[subs="verbatim,quotes"]
-----
-	yieldUnescaped '<!DOCTYPE html>'
-	html(lang:'en') {
-		head {
-			meta('http-equiv':'"Content-Type" content="text/html; charset=utf-8"')
-			title('My page')
-		}
-		body {
-			p('This is an example of HTML contents')
-		}
-	}
-----
-
-
-
-
-[[mvc-view-freemarker]]
-== FreeMarker
-
-http://www.freemarker.org[FreeMarker] is a  templating language that can be used as a
-view technology within Spring MVC applications. For details on the template language,
-see the http://www.freemarker.org[FreeMarker] web site.
-
-
-
-[[mvc-view-freemarker-dependencies]]
-=== Dependencies
-
-Your web application will need to include `freemarker-2.x.jar` in order to work with
-FreeMarker. Typically this is included in the `WEB-INF/lib` folder where the jars are
-guaranteed to be found by a Java EE server and added to the classpath for your
-application. It is of course assumed that you already have the `spring-webmvc.jar` in
-your `'WEB-INF/lib'` directory too!
-
-
-
-[[mvc-view-freemarker-contextconfig]]
-=== Context configuration
-
-A suitable configuration is initialized by adding the relevant configurer bean
-definition to your `'{asterisk}-servlet.xml'` as shown below:
+Or you can also declare the `FreeMarkerConfigurer` bean for full control over all
+properties:
 
 [source,xml,indent=0]
 [subs="verbatim,quotes"]
 ----
-	<!-- freemarker config -->
 	<bean id="freemarkerConfig" class="org.springframework.web.servlet.view.freemarker.FreeMarkerConfigurer">
 		<property name="templateLoaderPath" value="/WEB-INF/freemarker/"/>
 	</bean>
-
-	<!--
-	View resolvers can also be configured with ResourceBundles or XML files. If you need
-	different view resolving based on Locale, you have to use the resource bundle resolver.
-	-->
-	<bean id="viewResolver" class="org.springframework.web.servlet.view.freemarker.FreeMarkerViewResolver">
-		<property name="cache" value="true"/>
-		<property name="prefix" value=""/>
-		<property name="suffix" value=".ftl"/>
-	</bean>
 ----
 
-[NOTE]
-====
-For non web-apps add a `FreeMarkerConfigurationFactoryBean` to your application context
-definition file.
-====
-
-
-
-[[mvc-view-freemarker-createtemplates]]
-=== Creating templates
-
 Your templates need to be stored in the directory specified by the `FreeMarkerConfigurer`
-shown above. If you use the view resolvers highlighted, then the logical view names
-relate to the template file names in similar fashion to `InternalResourceViewResolver`
-for JSP's. So if your controller returns a ModelAndView object containing a view name of
+shown above. Given the above configuration if your controller returns the view name
 "welcome" then the resolver will look for the `/WEB-INF/freemarker/welcome.ftl` template.
 
 
 [[mvc-views-freemarker]]
-=== Advanced config
+=== FreeMarker config
+[.small]#<<web-reactive.adoc#webflux-views-freemarker,Same in Spring WebFlux>>#
 
 FreeMarker 'Settings' and 'SharedVariables' can be passed directly to the FreeMarker
 `Configuration` object managed by Spring by setting the appropriate bean properties on
@@ -206,7 +135,7 @@ the `Configuration` object.
 [[mvc-view-freemarker-forms]]
 === Form handling
 
-Spring provides a tag library for use in JSP's that contains (amongst other things) a
+Spring provides a tag library for use in JSP's that contains, amongst others, a
 `<spring:bind/>` tag. This tag primarily enables forms to display values from form
 backing objects and to show the results of failed validations from a `Validator` in the
 web or business tier. Spring also has support for the same functionality in FreeMarker,
@@ -285,9 +214,9 @@ parameter list that each takes.
 
 [[views-macros-defs-tbl]]
 .Table of macro definitions
-[cols="3,1,1"]
+[cols="3,1"]
 |===
-| macro| FTL definition
+| macro | FTL definition
 
 | **message** (output a string from a resource bundle based on the code parameter)
 | <@spring.message code/>
@@ -522,34 +451,311 @@ In similar fashion, HTML escaping can be specified per field:
 
 
 
-[[mvc-view-jsp]]
-== JSP & JSTL
+[[mvc-view-groovymarkup]]
+== Groovy Markup
 
-Spring provides a couple of out-of-the-box solutions for JSP and JSTL views. Using JSP
-or JSTL is done using a normal view resolver defined in the `WebApplicationContext`.
-Furthermore, of course you need to write some JSPs that will actually render the view.
+http://groovy-lang.org/templating.html#_the_markuptemplateengine[Groovy Markup Template Engine]
+is primarily aimed at generating XML-like markup (XML, XHTML, HTML5, etc) but that can
+be used to generate any text based content. The Spring Framework has a built-in
+integration for using Spring MVC with Groovy Markup.
+
+[TIP]
+====
+The Groovy Markup Tempalte engine requires Groovy 2.3.1+.
+====
+
+
+
+[[mvc-view-groovymarkup-configuration]]
+=== Configuration
+
+To configure the Groovy Markup Template Engine:
+
+[source,java,indent=0]
+[subs="verbatim,quotes"]
+----
+	@Configuration
+	@EnableWebMvc
+	public class WebConfig implements WebMvcConfigurer {
+
+		@Override
+		public void configureViewResolvers(ViewResolverRegistry registry) {
+			registry.groovy();
+		}
+
+		// Configure the Groovy Markup Template Engine...
+
+		@Bean
+		public GroovyMarkupConfigurer groovyMarkupConfigurer() {
+			GroovyMarkupConfigurer configurer = new GroovyMarkupConfigurer();
+			configurer.setResourceLoaderPath("/WEB-INF/");
+			return configurer;
+		}
+	}
+----
+
+To configure the same in XML:
+
+[source,xml,indent=0]
+[subs="verbatim,quotes"]
+----
+	<mvc:annotation-driven/>
+
+	<mvc:view-resolvers>
+		<mvc:groovy/>
+	</mvc:view-resolvers>
+
+	<!-- Configure the Groovy Markup Template Engine... -->
+	<mvc:groovy-configurer resource-loader-path="/WEB-INF/"/>
+----
+
+
+
+[[mvc-view-groovymarkup-example]]
+=== Example
+
+Unlike traditional template engines, Groovy Markup relies on a DSL that uses a builder
+syntax. Here is a sample template for an HTML page:
+
+[source,groovy,indent=0]
+[subs="verbatim,quotes"]
+----
+	yieldUnescaped '<!DOCTYPE html>'
+	html(lang:'en') {
+		head {
+			meta('http-equiv':'"Content-Type" content="text/html; charset=utf-8"')
+			title('My page')
+		}
+		body {
+			p('This is an example of HTML contents')
+		}
+	}
+----
+
+
+
+
+[[mvc-view-script]]
+== Script Views
+[.small]#<<web-reactive.adoc#webflux-view-script,Same in Spring WebFlux>>#
+
+The Spring Framework has a built-in integration for using Spring MVC with any
+templating library that can run on top of the
+https://www.jcp.org/en/jsr/detail?id=223[JSR-223] Java scripting engine. Below is a list
+of templating libraries we've tested on different script engines:
+
+[horizontal]
+http://handlebarsjs.com/[Handlebars] :: http://openjdk.java.net/projects/nashorn/[Nashorn]
+https://mustache.github.io/[Mustache] :: http://openjdk.java.net/projects/nashorn/[Nashorn]
+http://facebook.github.io/react/[React] :: http://openjdk.java.net/projects/nashorn/[Nashorn]
+http://www.embeddedjs.com/[EJS] :: http://openjdk.java.net/projects/nashorn/[Nashorn]
+http://www.stuartellis.eu/articles/erb/[ERB] :: http://jruby.org[JRuby]
+https://docs.python.org/2/library/string.html#template-strings[String templates] :: http://www.jython.org/[Jython]
+https://github.com/sdeleuze/kotlin-script-templating[Kotlin Script templating] :: http://kotlinlang.org/[Kotlin]
+
+[TIP]
+====
+The basic rule for integrating any other script engine is that it must implement the
+`ScriptEngine` and `Invocable` interfaces.
+====
+
+
+
+[[mvc-view-script-dependencies]]
+=== Requirements
+[.small]#<<web-reactive.adoc#webflux-view-script-dependencies,Same in Spring WebFlux>>#
+
+You need to have the script engine on your classpath:
+
+* http://openjdk.java.net/projects/nashorn/[Nashorn] JavaScript engine is provided with
+Java 8+. Using the latest update release available is highly recommended.
+* http://jruby.org[JRuby] should be added as a dependency for Ruby support.
+* http://www.jython.org[Jython] should be added as a dependency for Python support.
+* `org.jetbrains.kotlin:kotlin-script-util` dependency and a `META-INF/services/javax.script.ScriptEngineFactory`
+ file containing a `org.jetbrains.kotlin.script.jsr223.KotlinJsr223JvmLocalScriptEngineFactory`
+ line should be added for Kotlin script support, see
+ https://github.com/sdeleuze/kotlin-script-templating[this example] for more details.
+
+You need to have the script templating library. One way to do that for Javascript is
+through http://www.webjars.org/[WebJars].
+
+
+
+[[mvc-view-script-integrate]]
+=== Script templates
+[.small]#<<web-reactive.adoc#webflux-script-integrate,Same in Spring WebFlux>>#
+
+Declare a `ScriptTemplateConfigurer` bean in order to specify the script engine to use,
+the script files to load, what function to call to render templates, and so on.
+Below is an example with Mustache templates and the Nashorn JavaScript engine:
+
+[source,java,indent=0]
+[subs="verbatim,quotes"]
+----
+	@Configuration
+	@EnableWebMvc
+	public class WebConfig implements WebMvcConfigurer {
+
+		@Override
+		public void configureViewResolvers(ViewResolverRegistry registry) {
+			registry.scriptTemplate();
+		}
+
+		@Bean
+		public ScriptTemplateConfigurer configurer() {
+			ScriptTemplateConfigurer configurer = new ScriptTemplateConfigurer();
+			configurer.setEngineName("nashorn");
+			configurer.setScripts("mustache.js");
+			configurer.setRenderObject("Mustache");
+			configurer.setRenderFunction("render");
+			return configurer;
+		}
+	}
+----
+
+The same in XML:
+
+[source,xml,indent=0]
+[subs="verbatim,quotes"]
+----
+	<mvc:annotation-driven/>
+
+	<mvc:view-resolvers>
+		<mvc:script-template/>
+	</mvc:view-resolvers>
+
+	<mvc:script-template-configurer engine-name="nashorn" render-object="Mustache" render-function="render">
+		<mvc:script location="mustache.js"/>
+	</mvc:script-template-configurer>
+----
+
+The controller would look no different:
+
+[source,java,indent=0]
+[subs="verbatim,quotes"]
+----
+	@Controller
+	public class SampleController {
+
+		@GetMapping("/sample")
+		public String test(Model model) {
+			model.addObject("title", "Sample title");
+			model.addObject("body", "Sample body");
+			return "template";
+		}
+	}
+----
+
+And the Mustache template is:
+
+[source,html,indent=0]
+[subs="verbatim,quotes"]
+----
+	<html>
+		<head>
+			<title>{{title}}</title>
+		</head>
+		<body>
+			<p>{{body}}</p>
+		</body>
+	</html>
+----
+
+The render function is called with the following parameters:
+
+* `String template`: the template content
+* `Map model`: the view model
+* `RenderingContext renderingContext`: the
+  {api-spring-framework}/web/servlet/view/script/RenderingContext.html[RenderingContext]
+  that gives access to the application context, the locale, the template loader and the
+  url (since 5.0)
+
+`Mustache.render()` is natively compatible with this signature, so you can call it directly.
+
+If your templating technology requires some customization, you may provide a script that
+implements a custom render function. For example, http://handlebarsjs.com[Handlerbars]
+needs to compile templates before using them, and requires a
+http://en.wikipedia.org/wiki/Polyfill[polyfill] in order to emulate some
+browser facilities not available in the server-side script engine.
+
+[source,java,indent=0]
+[subs="verbatim,quotes"]
+----
+	@Configuration
+	@EnableWebMvc
+	public class WebConfig implements WebMvcConfigurer {
+
+		@Override
+		public void configureViewResolvers(ViewResolverRegistry registry) {
+			registry.scriptTemplate();
+		}
+
+		@Bean
+		public ScriptTemplateConfigurer configurer() {
+			ScriptTemplateConfigurer configurer = new ScriptTemplateConfigurer();
+			configurer.setEngineName("nashorn");
+			configurer.setScripts("polyfill.js", "handlebars.js", "render.js");
+			configurer.setRenderFunction("render");
+			configurer.setSharedEngine(false);
+			return configurer;
+		}
+	}
+----
 
 [NOTE]
 ====
-Setting up your application to use JSTL is a common source of error, mainly caused by
-confusion over the different servlet spec., JSP and JSTL version numbers, what they mean
-and how to declare the taglibs correctly. The article
-http://www.mularien.com/blog/2008/04/24/how-to-reference-and-use-jstl-in-your-web-application/[How
-to Reference and Use JSTL in your Web Application] provides a useful guide to the common
-pitfalls and how to avoid them. Note that as of Spring 3.0, the minimum supported
-servlet version is 2.4 (JSP 2.0 and JSTL 1.1), which reduces the scope for confusion
-somewhat.
+Setting the `sharedEngine` property to `false` is required when using non thread-safe
+script engines with templating libraries not designed for concurrency, like Handlebars or
+React running on Nashorn for example. In that case, Java 8u60 or greater is required due
+to https://bugs.openjdk.java.net/browse/JDK-8076099[this bug].
 ====
+
+`polyfill.js` only defines the `window` object needed by Handlebars to run properly:
+
+[source,javascript,indent=0]
+[subs="verbatim,quotes"]
+----
+	var window = {};
+----
+
+This basic `render.js` implementation compiles the template before using it. A production
+ready implementation should also store and reused cached templates / pre-compiled templates.
+This can be done on the script side, as well as any customization you need (managing
+template engine configuration for example).
+
+[source,javascript,indent=0]
+[subs="verbatim,quotes"]
+----
+	function render(template, model) {
+		var compiledTemplate = Handlebars.compile(template);
+		return compiledTemplate(model);
+	}
+----
+
+Check out the Spring Framework unit tests,
+https://github.com/spring-projects/spring-framework/tree/master/spring-webmvc/src/test/java/org/springframework/web/servlet/view/script[java], and
+https://github.com/spring-projects/spring-framework/tree/master/spring-webmvc/src/test/resources/org/springframework/web/servlet/view/script[resources],
+for more configuration examples.
+
+
+
+
+[[mvc-view-jsp]]
+== JSP & JSTL
+
+The Spring Framework has a built-in integration for using Spring MVC with JSP and JSTL.
 
 
 
 [[mvc-view-jsp-resolver]]
 === View resolvers
 
-Just as with any other view technology you're integrating with Spring, for JSPs you'll
-need a view resolver that will resolve your views. The most commonly used view resolvers
-when developing with JSPs are the `InternalResourceViewResolver` and the
-`ResourceBundleViewResolver`. Both are declared in the `WebApplicationContext`:
+When developing with JSPs you can declare a `InternalResourceViewResolver` or a
+`ResourceBundleViewResolver` bean.
+
+`ResourceBundleViewResolver` relies on a properties file to define the view names
+mapped to a class and a URL. With a `ResourceBundleViewResolver` you
+can mix different types of views using only one resolver. Here is an example:
 
 [source,xml,indent=0]
 [subs="verbatim,quotes"]
@@ -567,9 +773,9 @@ when developing with JSPs are the `InternalResourceViewResolver` and the
 	productList.url=/WEB-INF/jsp/productlist.jsp
 ----
 
-As you can see, the `ResourceBundleViewResolver` needs a properties file defining the
-view names mapped to 1) a class and 2) a URL. With a `ResourceBundleViewResolver` you
-can mix different types of views using only one resolver.
+`InternalResourceBundleViewResolver` can also be used for JSPs. As a best practice, we
+strongly encourage placing your JSP files in a directory under the `'WEB-INF'`
+directory so there can be no direct access by clients.
 
 [source,xml,indent=0]
 [subs="verbatim,quotes"]
@@ -580,10 +786,6 @@ can mix different types of views using only one resolver.
 		<property name="suffix" value=".jsp"/>
 	</bean>
 ----
-
-The `InternalResourceBundleViewResolver` can be configured for using JSPs as described
-above. As a best practice, we strongly encourage placing your JSP files in a directory
-under the `'WEB-INF'` directory, so there can be no direct access by clients.
 
 
 
@@ -1372,220 +1574,6 @@ is the default type.
 
 
 
-[[mvc-view-script]]
-== Script views
-
-It is possible to integrate any templating library running on top of a JSR-223
-script engine in web applications using Spring. The following describes in a
-broad way how to do this. The script engine must implement both `ScriptEngine`
-and `Invocable` interfaces.
-
-It has been tested with:
-
-* http://handlebarsjs.com/[Handlebars] running on http://openjdk.java.net/projects/nashorn/[Nashorn]
-* https://mustache.github.io/[Mustache] running on http://openjdk.java.net/projects/nashorn/[Nashorn]
-* http://facebook.github.io/react/[React] running on http://openjdk.java.net/projects/nashorn/[Nashorn]
-* http://www.embeddedjs.com/[EJS] running on http://openjdk.java.net/projects/nashorn/[Nashorn]
-* http://www.stuartellis.eu/articles/erb/[ERB] running on http://jruby.org[JRuby]
-* https://docs.python.org/2/library/string.html#template-strings[String templates] running on http://www.jython.org/[Jython]
-
-
-
-[[mvc-view-script-dependencies]]
-=== Requirements
-
-To be able to use script templates integration, you need to have available in your classpath
-the script engine:
-
-* http://openjdk.java.net/projects/nashorn/[Nashorn] Javascript engine is provided builtin with Java 8+.
-   Using the latest update release available is highly recommended.
-* http://docs.oracle.com/javase/7/docs/technotes/guides/scripting/programmer_guide/#jsengine[Rhino]
-   Javascript engine is provided builtin with Java 6 and Java 7.
-   Please notice that using Rhino is not recommended since it does not
-   support running most template engines.
-* http://jruby.org[JRuby] dependency should be added in order to get Ruby support.
-* http://www.jython.org[Jython] dependency should be added in order to get Python support.
-
-You should also need to add dependencies for your script based template engine. For example,
-for Javascript you can use http://www.webjars.org/[WebJars] to add Maven/Gradle dependencies
-in order to make your javascript libraries available in the classpath.
-
-
-
-[[mvc-view-script-integrate]]
-=== Script templates
-
-To be able to use script templates, you have to configure it in order to specify various parameters
-like the script engine to use, the script files to load and what function should be called to
-render the templates. This is done thanks to a `ScriptTemplateConfigurer` bean and optional script
-files.
-
-For example, in order to render Mustache templates thanks to the Nashorn Javascript engine
-provided with Java 8+, you should declare the following configuration:
-
-[source,java,indent=0]
-[subs="verbatim,quotes"]
-----
-	@Configuration
-	@EnableWebMvc
-	public class MustacheConfig implements WebMvcConfigurer {
-
-		@Override
-		public void configureViewResolvers(ViewResolverRegistry registry) {
-			registry.scriptTemplate();
-		}
-
-		@Bean
-		public ScriptTemplateConfigurer configurer() {
-			ScriptTemplateConfigurer configurer = new ScriptTemplateConfigurer();
-			configurer.setEngineName("nashorn");
-			configurer.setScripts("mustache.js");
-			configurer.setRenderObject("Mustache");
-			configurer.setRenderFunction("render");
-			return configurer;
-		}
-	}
-----
-
-The XML counterpart using MVC namespace is:
-
-[source,xml,indent=0]
-[subs="verbatim,quotes"]
-----
-	<mvc:annotation-driven/>
-
-	<mvc:view-resolvers>
-		<mvc:script-template/>
-	</mvc:view-resolvers>
-
-	<mvc:script-template-configurer engine-name="nashorn" render-object="Mustache" render-function="render">
-		<mvc:script location="mustache.js"/>
-	</mvc:script-template-configurer>
-----
-
-The controller is exactly what you should expect:
-
-[source,java,indent=0]
-[subs="verbatim,quotes"]
-----
-	@Controller
-	public class SampleController {
-
-		@RequestMapping
-		public ModelAndView test() {
-			ModelAndView mav  = new ModelAndView();
-			mav.addObject("title", "Sample title").addObject("body", "Sample body");
-			mav.setViewName("template.html");
-			return mav;
-		}
-	}
-----
-
-And the Mustache template is:
-
-[source,html,indent=0]
-[subs="verbatim,quotes"]
-----
-	<html>
-		<head>
-			<title>{{title}}</title>
-		</head>
-		<body>
-			<p>{{body}}</p>
-		</body>
-	</html>
-----
-
-The render function is called with the following parameters:
-
-* `String template`: the template content
-* `Map model`: the view model
-* `String url`: the template url (since 4.2.2)
-
-`Mustache.render()` is natively compatible with this signature, so you can call it directly.
-
-If your templating technology requires some customization, you may provide a script that
-implements a custom render function. For example, http://handlebarsjs.com[Handlerbars]
-needs to compile templates before using them, and requires a
-http://en.wikipedia.org/wiki/Polyfill[polyfill] in order to emulate some
-browser facilities not available in the server-side script engine.
-
-[source,java,indent=0]
-[subs="verbatim,quotes"]
-----
-	@Configuration
-	@EnableWebMvc
-	public class MustacheConfig implements WebMvcConfigurer {
-
-		@Override
-		public void configureViewResolvers(ViewResolverRegistry registry) {
-			registry.scriptTemplate();
-		}
-
-		@Bean
-		public ScriptTemplateConfigurer configurer() {
-			ScriptTemplateConfigurer configurer = new ScriptTemplateConfigurer();
-			configurer.setEngineName("nashorn");
-			configurer.setScripts("polyfill.js", "handlebars.js", "render.js");
-			configurer.setRenderFunction("render");
-			configurer.setSharedEngine(false);
-			return configurer;
-		}
-	}
-----
-
-[NOTE]
-====
-Setting the `sharedEngine` property to `false` is required when using non thread-safe
-script engines with templating libraries not designed for concurrency, like Handlebars or
-React running on Nashorn for example. In that case, Java 8u60 or greater is required due
-to https://bugs.openjdk.java.net/browse/JDK-8076099[this bug].
-====
-
-`polyfill.js` only defines the `window` object needed by Handlebars to run properly:
-
-[source,javascript,indent=0]
-[subs="verbatim,quotes"]
-----
-	var window = {};
-----
-
-This basic `render.js` implementation compiles the template before using it. A production
-ready implementation should also store and reused cached templates / pre-compiled templates.
-This can be done on the script side, as well as any customization you need (managing
-template engine configuration for example).
-
-[source,javascript,indent=0]
-[subs="verbatim,quotes"]
-----
-	function render(template, model) {
-		var compiledTemplate = Handlebars.compile(template);
-		return compiledTemplate(model);
-	}
-----
-
-Check out Spring script templates unit tests
-(https://github.com/spring-projects/spring-framework/tree/master/spring-webmvc/src/test/java/org/springframework/web/servlet/view/script[java],
-https://github.com/spring-projects/spring-framework/tree/master/spring-webmvc/src/test/resources/org/springframework/web/servlet/view/script[resources])
-for more configuration examples.
-
-
-
-
-[[mvc-view-xml-marshalling]]
-== XML Marshalling
-
-The `MarshallingView` uses an XML `Marshaller` defined in the `org.springframework.oxm`
-package to render the response content as XML. The object to be marshalled can be set
-explicitly using ``MarhsallingView``'s `modelKey` bean property. Alternatively, the view
-will iterate over all model properties and marshal the first type that is supported
-by the `Marshaller`. For more information on the functionality in the
-`org.springframework.oxm` package refer to the chapter <<oxm,Marshalling XML using O/X
-Mappers>>.
-
-
-
-
 [[mvc-view-tiles]]
 == Tiles
 
@@ -1763,161 +1751,73 @@ per preparer name (as used in your Tiles definitions).
 
 
 
-[[mvc-view-xslt]]
-== XSLT
+[[mvc-view-feeds]]
+== RSS, Atom
 
-XSLT is a transformation language for XML and is popular as a view technology within web
-applications. XSLT can be a good choice as a view technology if your application
-naturally deals with XML, or if your model can easily be converted to XML. The following
-section shows how to produce an XML document as model data and have it transformed with
-XSLT in a Spring Web MVC application.
+Both `AbstractAtomFeedView` and `AbstractRssFeedView` inherit from the base class
+`AbstractFeedView` and are used to provide Atom and RSS Feed views respectfully. They
+are based on java.net's https://rome.dev.java.net[ROME] project and are located in the
+package `org.springframework.web.servlet.view.feed`.
 
-This example is a trivial Spring application that creates a list of words in the
-`Controller` and adds them to the model map. The map is returned along with the view
-name of our XSLT view. See <<mvc-controller>> for details of Spring Web MVC's
-`Controller` interface. The XSLT Controller will turn the list of words into a simple XML
-document ready for transformation.
-
-
-
-[[mvc-view-xslt-beandefs]]
-=== Beans
-
-Configuration is standard for a simple Spring application.
-The MVC configuration has to define a `XsltViewResolver` bean and
-regular MVC annotation configuration.
+`AbstractAtomFeedView` requires you to implement the `buildFeedEntries()` method and
+optionally override the `buildFeedMetadata()` method (the default implementation is
+empty), as shown below.
 
 [source,java,indent=0]
 [subs="verbatim,quotes"]
 ----
-@EnableWebMvc
-@ComponentScan
-@Configuration
-public class WebConfig implements WebMvcConfigurer {
+	public class SampleContentAtomView extends AbstractAtomFeedView {
 
-	@Bean
-	public XsltViewResolver xsltViewResolver() {
-		XsltViewResolver viewResolver = new XsltViewResolver();
-		viewResolver.setPrefix("/WEB-INF/xsl/");
-		viewResolver.setSuffix(".xslt");
-		return viewResolver;
-	}
+		@Override
+		protected void buildFeedMetadata(Map<String, Object> model,
+				Feed feed, HttpServletRequest request) {
+			// implementation omitted
+		}
 
-}
-----
-
-And we need a Controller that encapsulates our word generation logic.
-
-
-
-[[mvc-view-xslt-controllercode]]
-=== Controller
-
-The controller logic is encapsulated in a `@Controller` class, with the
-handler method being defined like so...
-
-[source,java,indent=0]
-[subs="verbatim,quotes"]
-----
-	@Controller
-	public class XsltController {
-
-		@RequestMapping("/")
-		public String home(Model model) throws Exception {
-
-			Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
-			Element root = document.createElement("wordList");
-
-			List<String> words = Arrays.asList("Hello", "Spring", "Framework");
-			for (String word : words) {
-				Element wordNode = document.createElement("word");
-				Text textNode = document.createTextNode(word);
-				wordNode.appendChild(textNode);
-				root.appendChild(wordNode);
-			}
-
-			model.addAttribute("wordList", root);
-			return "home";
+		@Override
+		protected List<Entry> buildFeedEntries(Map<String, Object> model,
+				HttpServletRequest request, HttpServletResponse response) throws Exception {
+			// implementation omitted
 		}
 
 	}
 ----
 
-So far we've only created a DOM document and added it to the Model map. Note that you
-can also load an XML file as a `Resource` and use it instead of a custom DOM document.
+Similar requirements apply for implementing `AbstractRssFeedView`, as shown below.
 
-Of course, there are software packages available that will automatically 'domify'
-an object graph, but within Spring, you have complete flexibility to create the DOM
-from your model in any way you choose. This prevents the transformation of XML playing
-too great a part in the structure of your model data which is a danger when using tools
-to manage the domification process.
-
-Next, `XsltViewResolver` will resolve the "home" XSLT template file and merge the
-DOM document into it to generate our view.
-
-
-
-[[mvc-view-xslt-transforming]]
-=== Transformation
-
-Finally, the `XsltViewResolver` will resolve the "home" XSLT template file and merge the
-DOM document into it to generate our view. As shown in the `XsltViewResolver`
-configuration, XSLT templates live in the war file in the `'WEB-INF/xsl'` directory
-and end with a `"xslt"` file extension.
-
-[source,xml,indent=0]
+[source,java,indent=0]
 [subs="verbatim,quotes"]
 ----
-	<?xml version="1.0" encoding="utf-8"?>
-	<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+	public class SampleContentAtomView extends AbstractRssFeedView {
 
-		<xsl:output method="html" omit-xml-declaration="yes"/>
+		@Override
+		protected void buildFeedMetadata(Map<String, Object> model,
+				Channel feed, HttpServletRequest request) {
+			// implementation omitted
+		}
 
-		<xsl:template match="/">
-			<html>
-				<head><title>Hello!</title></head>
-				<body>
-					<h1>My First Words</h1>
-					<ul>
-						<xsl:apply-templates/>
-					</ul>
-				</body>
-			</html>
-		</xsl:template>
+		@Override
+		protected List<Item> buildFeedItems(Map<String, Object> model,
+				HttpServletRequest request, HttpServletResponse response) throws Exception {
+			// implementation omitted
+		}
 
-		<xsl:template match="word">
-			<li><xsl:value-of select="."/></li>
-		</xsl:template>
-
-	</xsl:stylesheet>
+	}
 ----
 
-This is rendered as:
+The `buildFeedItems()` and `buildFeedEntires()` methods pass in the HTTP request in case
+you need to access the Locale. The HTTP response is passed in only for the setting of
+cookies or other HTTP headers. The feed will automatically be written to the response
+object after the method returns.
 
-[source,html,indent=0]
-[subs="verbatim,quotes"]
-----
-<html>
-	<head>
-		<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
-		<title>Hello!</title>
-	</head>
-	<body>
-		<h1>My First Words</h1>
-		<ul>
-			<li>Hello</li>
-			<li>Spring</li>
-			<li>Framework</li>
-		</ul>
-	</body>
-</html>
-----
+For an example of creating an Atom view please refer to Alef Arendsen's Spring Team Blog
+https://spring.io/blog/2009/03/16/adding-an-atom-view-to-an-application-using-spring-s-rest-support[entry].
 
 
 
 
 [[mvc-view-document]]
-== Document views: PDF, Excel
+== PDF, Excel
 
 
 
@@ -1931,7 +1831,15 @@ server with the correct content type to (hopefully) enable the client PC to run 
 spreadsheet or PDF viewer application in response.
 
 In order to use Excel views, you need to add the Apache POI library to your classpath,
-and for PDF generation, the common iText 2.1.7 or its fork OpenPDF (e.g. OpenPDF 1.0.4).
+and for PDF generation preferably the OpenPDF library.
+
+[NOTE]
+====
+Use the latest versions of the underlying document generation libraries if possible.
+In particular, we strongly recommend OpenPDF (e.g. OpenPDF 1.0.5) instead of the
+outdated original iText 2.1.7 since it is actively maintained and fixes an important
+vulnerability for untrusted PDF content.
+====
 
 
 
@@ -2099,78 +2007,15 @@ document should appear listing each of the words in the model map.
 
 
 
-[[mvc-view-feeds]]
-== Feed views: RSS, Atom
-
-Both `AbstractAtomFeedView` and `AbstractRssFeedView` inherit from the base class
-`AbstractFeedView` and are used to provide Atom and RSS Feed views respectfully. They
-are based on java.net's https://rome.dev.java.net[ROME] project and are located in the
-package `org.springframework.web.servlet.view.feed`.
-
-`AbstractAtomFeedView` requires you to implement the `buildFeedEntries()` method and
-optionally override the `buildFeedMetadata()` method (the default implementation is
-empty), as shown below.
-
-[source,java,indent=0]
-[subs="verbatim,quotes"]
-----
-	public class SampleContentAtomView extends AbstractAtomFeedView {
-
-		@Override
-		protected void buildFeedMetadata(Map<String, Object> model,
-				Feed feed, HttpServletRequest request) {
-			// implementation omitted
-		}
-
-		@Override
-		protected List<Entry> buildFeedEntries(Map<String, Object> model,
-				HttpServletRequest request, HttpServletResponse response) throws Exception {
-			// implementation omitted
-		}
-
-	}
-----
-
-Similar requirements apply for implementing `AbstractRssFeedView`, as shown below.
-
-[source,java,indent=0]
-[subs="verbatim,quotes"]
-----
-	public class SampleContentAtomView extends AbstractRssFeedView {
-
-		@Override
-		protected void buildFeedMetadata(Map<String, Object> model,
-				Channel feed, HttpServletRequest request) {
-			// implementation omitted
-		}
-
-		@Override
-		protected List<Item> buildFeedItems(Map<String, Object> model,
-				HttpServletRequest request, HttpServletResponse response) throws Exception {
-			// implementation omitted
-		}
-
-	}
-----
-
-The `buildFeedItems()` and `buildFeedEntires()` methods pass in the HTTP request in case
-you need to access the Locale. The HTTP response is passed in only for the setting of
-cookies or other HTTP headers. The feed will automatically be written to the response
-object after the method returns.
-
-For an example of creating an Atom view please refer to Alef Arendsen's Spring Team Blog
-https://spring.io/blog/2009/03/16/adding-an-atom-view-to-an-application-using-spring-s-rest-support[entry].
-
-
-
-
 [[mvc-view-jackson]]
 == Jackson
+[.small]#<<web-reactive.adoc#webflux-view-httpmessagewriter,Same in Spring WebFlux>>#
 
 
 
 [[mvc-view-json-mapping]]
 === JSON
+[.small]#<<web-reactive.adoc#webflux-view-httpmessagewriter,Same in Spring WebFlux>>#
 
 The `MappingJackson2JsonView` uses the Jackson library's `ObjectMapper` to render the response
 content as JSON. By default, the entire contents of the model map (with the exception of
@@ -2193,6 +2038,7 @@ name(s) could be customized through the `jsonpParameterNames` property.
 
 [[mvc-view-xml-mapping]]
 === XML
+[.small]#<<web-reactive.adoc#webflux-view-httpmessagewriter,Same in Spring WebFlux>>#
 
 The `MappingJackson2XmlView` uses the
 https://github.com/FasterXML/jackson-dataformat-xml[Jackson XML extension]'s `XmlMapper`
@@ -2204,3 +2050,170 @@ XML mapping can be customized as needed through the use of JAXB or Jackson's pro
 annotations. When further control is needed, a custom `XmlMapper` can be injected
 through the `ObjectMapper` property for cases where custom XML
 serializers/deserializers need to be provided for specific types.
+
+
+
+
+[[mvc-view-xml-marshalling]]
+== XML
+
+The `MarshallingView` uses an XML `Marshaller` defined in the `org.springframework.oxm`
+package to render the response content as XML. The object to be marshalled can be set
+explicitly using ``MarhsallingView``'s `modelKey` bean property. Alternatively, the view
+will iterate over all model properties and marshal the first type that is supported
+by the `Marshaller`. For more information on the functionality in the
+`org.springframework.oxm` package refer to the chapter <<oxm,Marshalling XML using O/X
+Mappers>>.
+
+
+
+
+[[mvc-view-xslt]]
+== XSLT
+
+XSLT is a transformation language for XML and is popular as a view technology within web
+applications. XSLT can be a good choice as a view technology if your application
+naturally deals with XML, or if your model can easily be converted to XML. The following
+section shows how to produce an XML document as model data and have it transformed with
+XSLT in a Spring Web MVC application.
+
+This example is a trivial Spring application that creates a list of words in the
+`Controller` and adds them to the model map. The map is returned along with the view
+name of our XSLT view. See <<mvc-controller>> for details of Spring Web MVC's
+`Controller` interface. The XSLT Controller will turn the list of words into a simple XML
+document ready for transformation.
+
+
+
+[[mvc-view-xslt-beandefs]]
+=== Beans
+
+Configuration is standard for a simple Spring application.
+The MVC configuration has to define a `XsltViewResolver` bean and
+regular MVC annotation configuration.
+
+[source,java,indent=0]
+[subs="verbatim,quotes"]
+----
+@EnableWebMvc
+@ComponentScan
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+
+	@Bean
+	public XsltViewResolver xsltViewResolver() {
+		XsltViewResolver viewResolver = new XsltViewResolver();
+		viewResolver.setPrefix("/WEB-INF/xsl/");
+		viewResolver.setSuffix(".xslt");
+		return viewResolver;
+	}
+
+}
+----
+
+And we need a Controller that encapsulates our word generation logic.
+
+
+
+[[mvc-view-xslt-controllercode]]
+=== Controller
+
+The controller logic is encapsulated in a `@Controller` class, with the
+handler method being defined like so...
+
+[source,java,indent=0]
+[subs="verbatim,quotes"]
+----
+	@Controller
+	public class XsltController {
+
+		@RequestMapping("/")
+		public String home(Model model) throws Exception {
+
+			Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+			Element root = document.createElement("wordList");
+
+			List<String> words = Arrays.asList("Hello", "Spring", "Framework");
+			for (String word : words) {
+				Element wordNode = document.createElement("word");
+				Text textNode = document.createTextNode(word);
+				wordNode.appendChild(textNode);
+				root.appendChild(wordNode);
+			}
+
+			model.addAttribute("wordList", root);
+			return "home";
+		}
+
+	}
+----
+
+So far we've only created a DOM document and added it to the Model map. Note that you
+can also load an XML file as a `Resource` and use it instead of a custom DOM document.
+
+Of course, there are software packages available that will automatically 'domify'
+an object graph, but within Spring, you have complete flexibility to create the DOM
+from your model in any way you choose. This prevents the transformation of XML playing
+too great a part in the structure of your model data which is a danger when using tools
+to manage the domification process.
+
+Next, `XsltViewResolver` will resolve the "home" XSLT template file and merge the
+DOM document into it to generate our view.
+
+
+
+[[mvc-view-xslt-transforming]]
+=== Transformation
+
+Finally, the `XsltViewResolver` will resolve the "home" XSLT template file and merge the
+DOM document into it to generate our view. As shown in the `XsltViewResolver`
+configuration, XSLT templates live in the war file in the `'WEB-INF/xsl'` directory
+and end with a `"xslt"` file extension.
+
+[source,xml,indent=0]
+[subs="verbatim,quotes"]
+----
+	<?xml version="1.0" encoding="utf-8"?>
+	<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+
+		<xsl:output method="html" omit-xml-declaration="yes"/>
+
+		<xsl:template match="/">
+			<html>
+				<head><title>Hello!</title></head>
+				<body>
+					<h1>My First Words</h1>
+					<ul>
+						<xsl:apply-templates/>
+					</ul>
+				</body>
+			</html>
+		</xsl:template>
+
+		<xsl:template match="word">
+			<li><xsl:value-of select="."/></li>
+		</xsl:template>
+
+	</xsl:stylesheet>
+----
+
+This is rendered as:
+
+[source,html,indent=0]
+[subs="verbatim,quotes"]
+----
+<html>
+	<head>
+		<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>Hello!</title>
+	</head>
+	<body>
+		<h1>My First Words</h1>
+		<ul>
+			<li>Hello</li>
+			<li>Spring</li>
+			<li>Framework</li>
+		</ul>
+	</body>
+</html>
+----

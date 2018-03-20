@@ -41,6 +41,7 @@ import javax.jms.TopicSession;
 
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -175,6 +176,7 @@ public class CachingConnectionFactory extends SingleConnectionFactory {
 	@Override
 	public void resetConnection() {
 		this.active = false;
+
 		synchronized (this.cachedSessions) {
 			for (LinkedList<Session> sessionList : this.cachedSessions.values()) {
 				synchronized (sessionList) {
@@ -190,10 +192,11 @@ public class CachingConnectionFactory extends SingleConnectionFactory {
 			}
 			this.cachedSessions.clear();
 		}
-		this.active = true;
 
 		// Now proceed with actual closing of the shared Connection...
 		super.resetConnection();
+
+		this.active = true;
 	}
 
 	/**
@@ -201,6 +204,10 @@ public class CachingConnectionFactory extends SingleConnectionFactory {
 	 */
 	@Override
 	protected Session getSession(Connection con, Integer mode) throws JMSException {
+		if (!this.active) {
+			return null;
+		}
+
 		LinkedList<Session> sessionList;
 		synchronized (this.cachedSessions) {
 			sessionList = this.cachedSessions.get(mode);
@@ -248,10 +255,8 @@ public class CachingConnectionFactory extends SingleConnectionFactory {
 		if (target instanceof TopicSession) {
 			classes.add(TopicSession.class);
 		}
-		return (Session) Proxy.newProxyInstance(
-				SessionProxy.class.getClassLoader(),
-				classes.toArray(new Class<?>[classes.size()]),
-				new CachedSessionInvocationHandler(target, sessionList));
+		return (Session) Proxy.newProxyInstance(SessionProxy.class.getClassLoader(),
+				ClassUtils.toClassArray(classes), new CachedSessionInvocationHandler(target, sessionList));
 	}
 
 
@@ -264,11 +269,9 @@ public class CachingConnectionFactory extends SingleConnectionFactory {
 
 		private final LinkedList<Session> sessionList;
 
-		private final Map<DestinationCacheKey, MessageProducer> cachedProducers =
-				new HashMap<>();
+		private final Map<DestinationCacheKey, MessageProducer> cachedProducers = new HashMap<>();
 
-		private final Map<ConsumerCacheKey, MessageConsumer> cachedConsumers =
-				new HashMap<>();
+		private final Map<ConsumerCacheKey, MessageConsumer> cachedConsumers = new HashMap<>();
 
 		private boolean transactionOpen = false;
 

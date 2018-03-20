@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,9 +89,7 @@ import org.springframework.web.util.UriTemplateHandler;
  * HTTP PATCH, HTTP PUT with response body, etc.). Note however that the underlying HTTP
  * library used must also support the desired combination.
  *
- * <p>For each HTTP method there are three variants: two accept a URI template string
- * and URI variables (array or map) while a third accepts a {@link URI}.
- * Note that for URI templates it is assumed encoding is necessary, e.g.
+ * <p><strong>Note:</strong> For URI templates it is assumed encoding is necessary, e.g.
  * {@code restTemplate.getForObject("http://example.com/hotel list")} becomes
  * {@code "http://example.com/hotel%20list"}. This also means if the URI template
  * or URI variables are already encoded, double encoding will occur, e.g.
@@ -298,12 +296,16 @@ public class RestTemplate extends InterceptingHttpAccessor implements RestOperat
 	}
 
 	/**
-	 * Configure the {@link UriTemplateHandler} to use to expand URI templates.
-	 * By default the {@link DefaultUriBuilderFactory} is used which relies on
-	 * Spring's URI template support and exposes several useful properties that
-	 * customize its behavior for encoding and for prepending a common base URL.
-	 * An alternative implementation may be used to plug an external URI
-	 * template library.
+	 * Customize how URI templates are expanded into URI instances.
+	 * <p>By default {@link DefaultUriBuilderFactory} with default settings is
+	 * used. You can supply a {@code DefaultUriBuilderFactory} configured
+	 * differently, or an entirely different implementation, for example that
+	 * plugs in a 3rd party URI template library.
+	 * <p><strong>Note:</strong> in 5.0 the switch from
+	 * {@link org.springframework.web.util.DefaultUriTemplateHandler
+	 * DefaultUriTemplateHandler} (deprecated in 4.3), as the default to use, to
+	 * {@link DefaultUriBuilderFactory} brings in a different default for the
+	 * {@code parsePath} property (switching from false to true).
 	 * @param handler the URI template handler to use
 	 */
 	public void setUriTemplateHandler(UriTemplateHandler handler) {

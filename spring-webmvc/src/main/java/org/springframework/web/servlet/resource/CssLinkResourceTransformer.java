@@ -120,7 +120,7 @@ public class CssLinkResourceTransformer extends ResourceTransformerSupport {
 	}
 
 	private boolean hasScheme(String link) {
-		int schemeIndex = link.indexOf(":");
+		int schemeIndex = link.indexOf(':');
 		return (schemeIndex > 0 && !link.substring(0, schemeIndex).contains("/")) || link.indexOf("//") == 0;
 	}
 
@@ -136,7 +136,7 @@ public class CssLinkResourceTransformer extends ResourceTransformerSupport {
 	}
 
 
-	protected static abstract class AbstractLinkParser implements LinkParser {
+	protected abstract static class AbstractLinkParser implements LinkParser {
 
 		/** Return the keyword to use to search for links, e.g. "@import", "url(" */
 		protected abstract String getKeyword();

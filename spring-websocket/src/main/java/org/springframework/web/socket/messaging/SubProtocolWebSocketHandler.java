@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@ import org.springframework.web.socket.sockjs.transport.session.StreamingSockJsSe
  * sub-protocol handler to send messages from the application back to the client.
  *
  * @author Rossen Stoyanchev
+ * @author Juergen Hoeller
  * @author Andy Wilkinson
  * @author Artem Bilan
  * @since 4.0
@@ -103,9 +104,9 @@ public class SubProtocolWebSocketHandler
 
 	private final Stats stats = new Stats();
 
-	private final Object lifecycleMonitor = new Object();
-
 	private volatile boolean running = false;
+
+	private final Object lifecycleMonitor = new Object();
 
 
 	/**
@@ -152,8 +153,8 @@ public class SubProtocolWebSocketHandler
 		for (String protocol : protocols) {
 			SubProtocolHandler replaced = this.protocolHandlerLookup.put(protocol, handler);
 			if (replaced != null && replaced != handler) {
-				throw new IllegalStateException("Can't map " + handler +
-						" to protocol '" + protocol + "'. Already mapped to " + replaced + ".");
+				throw new IllegalStateException("Cannot map " + handler +
+						" to protocol '" + protocol + "': already mapped to " + replaced + ".");
 			}
 		}
 		this.protocolHandlers.add(handler);
@@ -244,6 +245,7 @@ public class SubProtocolWebSocketHandler
 	@Override
 	public final void start() {
 		Assert.isTrue(this.defaultProtocolHandler != null || !this.protocolHandlers.isEmpty(), "No handlers");
+
 		synchronized (this.lifecycleMonitor) {
 			this.clientOutboundChannel.subscribe(this);
 			this.running = true;
@@ -255,14 +257,16 @@ public class SubProtocolWebSocketHandler
 		synchronized (this.lifecycleMonitor) {
 			this.running = false;
 			this.clientOutboundChannel.unsubscribe(this);
-			for (WebSocketSessionHolder holder : this.sessions.values()) {
-				try {
-					holder.getSession().close(CloseStatus.GOING_AWAY);
-				}
-				catch (Throwable ex) {
-					if (logger.isErrorEnabled()) {
-						logger.error("Failed to close '" + holder.getSession() + "': " + ex);
-					}
+		}
+
+		// Proactively notify all active WebSocket sessions
+		for (WebSocketSessionHolder holder : this.sessions.values()) {
+			try {
+				holder.getSession().close(CloseStatus.GOING_AWAY);
+			}
+			catch (Throwable ex) {
+				if (logger.isWarnEnabled()) {
+					logger.warn("Failed to close '" + holder.getSession() + "': " + ex);
 				}
 			}
 		}
@@ -278,9 +282,7 @@ public class SubProtocolWebSocketHandler
 
 	@Override
 	public final boolean isRunning() {
-		synchronized (this.lifecycleMonitor) {
-			return this.running;
-		}
+		return this.running;
 	}
 
 
@@ -290,6 +292,7 @@ public class SubProtocolWebSocketHandler
 		if (!session.isOpen()) {
 			return;
 		}
+
 		this.stats.incrementSessionCount(session);
 		session = decorateSession(session);
 		this.sessions.put(session.getId(), new WebSocketSessionHolder(session));
@@ -321,7 +324,7 @@ public class SubProtocolWebSocketHandler
 		String sessionId = resolveSessionId(message);
 		if (sessionId == null) {
 			if (logger.isErrorEnabled()) {
-				logger.error("Couldn't find session id in " + message);
+				logger.error("Could not find session id in " + message);
 			}
 			return;
 		}
@@ -400,8 +403,8 @@ public class SubProtocolWebSocketHandler
 		}
 		catch (Exception ex) {
 			// Shouldn't happen
-			logger.error("Failed to obtain session.getAcceptedProtocol(). " +
-					"Will use the default protocol handler (if configured).", ex);
+			logger.error("Failed to obtain session.getAcceptedProtocol(): " +
+					"will use the default protocol handler (if configured).", ex);
 		}
 
 		SubProtocolHandler handler;
@@ -469,8 +472,8 @@ public class SubProtocolWebSocketHandler
 						continue;
 					}
 					WebSocketSession session = holder.getSession();
-					if (logger.isErrorEnabled()) {
-						logger.error("No messages received after " + timeSinceCreated + " ms. " +
+					if (logger.isInfoEnabled()) {
+						logger.info("No messages received after " + timeSinceCreated + " ms. " +
 								"Closing " + holder.getSession() + ".");
 					}
 					try {
@@ -478,8 +481,8 @@ public class SubProtocolWebSocketHandler
 						session.close(CloseStatus.SESSION_NOT_RELIABLE);
 					}
 					catch (Throwable ex) {
-						if (logger.isErrorEnabled()) {
-							logger.error("Failure while closing " + session, ex);
+						if (logger.isWarnEnabled()) {
+							logger.warn("Failed to close unreliable " + session, ex);
 						}
 					}
 				}

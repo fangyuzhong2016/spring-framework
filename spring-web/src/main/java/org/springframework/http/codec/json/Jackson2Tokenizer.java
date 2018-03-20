@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.async.ByteArrayFeeder;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
-import org.jetbrains.annotations.NotNull;
 import reactor.core.publisher.Flux;
 
 import org.springframework.core.codec.DecodingException;
@@ -69,8 +68,7 @@ class Jackson2Tokenizer {
 	}
 
 	/**
-	 * Tokenize the given {@link DataBuffer} flux into a {@link TokenBuffer} flux, given the
-	 * parameters.
+	 * Tokenize the given {@code Flux<DataBuffer>} into {@code Flux<TokenBuffer>}.
 	 * @param dataBuffers the source data buffers
 	 * @param jsonFactory the factory to use
 	 * @param tokenizeArrayElements if {@code true} and the "top level" JSON
@@ -80,10 +78,10 @@ class Jackson2Tokenizer {
 	 */
 	public static Flux<TokenBuffer> tokenize(Flux<DataBuffer> dataBuffers, JsonFactory jsonFactory,
 			boolean tokenizeArrayElements) {
+
 		try {
-			Jackson2Tokenizer tokenizer =
-					new Jackson2Tokenizer(jsonFactory.createNonBlockingByteArrayParser(),
-							tokenizeArrayElements);
+			JsonParser parser = jsonFactory.createNonBlockingByteArrayParser();
+			Jackson2Tokenizer tokenizer = new Jackson2Tokenizer(parser, tokenizeArrayElements);
 			return dataBuffers.flatMap(tokenizer::tokenize, Flux::error, tokenizer::endOfInput);
 		}
 		catch (IOException ex) {
@@ -114,18 +112,23 @@ class Jackson2Tokenizer {
 		try {
 			return parseTokenBufferFlux();
 		}
+		catch (JsonProcessingException ex) {
+			return Flux.error(new DecodingException(
+					"JSON decoding error: " + ex.getOriginalMessage(), ex));
+		}
 		catch (IOException ex) {
 			return Flux.error(ex);
 		}
 	}
 
-	@NotNull
 	private Flux<TokenBuffer> parseTokenBufferFlux() throws IOException {
 		List<TokenBuffer> result = new ArrayList<>();
 
 		while (true) {
 			JsonToken token = this.parser.nextToken();
-			if (token == null || token == JsonToken.NOT_AVAILABLE) {
+			// SPR-16151: Smile data format uses null to separate documents
+			if ((token == JsonToken.NOT_AVAILABLE) ||
+					(token == null && (token = this.parser.nextToken()) == null)) {
 				break;
 			}
 			updateDepth(token);
@@ -173,8 +176,9 @@ class Jackson2Tokenizer {
 			this.tokenBuffer.copyCurrentEvent(this.parser);
 		}
 
-		if ((token == JsonToken.END_OBJECT &&  this.objectDepth == 0 && (this.arrayDepth == 1 || this.arrayDepth == 0)) ||
-				(token.isScalarValue()) && this.objectDepth == 0 && this.arrayDepth == 0) {
+		if (this.objectDepth == 0 &&
+				(this.arrayDepth == 0 || this.arrayDepth == 1) &&
+				(token == JsonToken.END_OBJECT || token.isScalarValue())) {
 			result.add(this.tokenBuffer);
 			this.tokenBuffer = new TokenBuffer(this.parser);
 		}

@@ -258,27 +258,27 @@ the server APIs are used and where Reactive Streams support comes from:
 
 [cols="1,2,2", options="header"]
 |===
-|Server name|Server API used|Reactive Streams support
+| Server name | Server API used | Reactive Streams support
 
-|Netty
-|Netty API
-|https://github.com/reactor/reactor-netty[Reactor Netty]
+| Netty
+| Netty API
+| https://github.com/reactor/reactor-netty[Reactor Netty]
 
-|Undertow
-|Undertow API
-|spring-web: Undertow to Reactive Streams bridge
+| Undertow
+| Undertow API
+| spring-web: Undertow to Reactive Streams bridge
 
-|Tomcat
-|Servlet 3.1 non-blocking I/O; Tomcat API to read and write ByteBuffers vs byte[]
-|spring-web: Servlet 3.1 non-blocking I/O to Reactive Streams bridge
+| Tomcat
+| Servlet 3.1 non-blocking I/O; Tomcat API to read and write ByteBuffers vs byte[]
+| spring-web: Servlet 3.1 non-blocking I/O to Reactive Streams bridge
 
-|Jetty
-|Servlet 3.1 non-blocking I/O; Jetty API to write ByteBuffers vs byte[]
-|spring-web: Servlet 3.1 non-blocking I/O to Reactive Streams bridge
+| Jetty
+| Servlet 3.1 non-blocking I/O; Jetty API to write ByteBuffers vs byte[]
+| spring-web: Servlet 3.1 non-blocking I/O to Reactive Streams bridge
 
-|Servlet 3.1 container
-|Servlet 3.1 non-blocking I/O
-|spring-web: Servlet 3.1 non-blocking I/O to Reactive Streams bridge
+| Servlet 3.1 container
+| Servlet 3.1 non-blocking I/O
+| spring-web: Servlet 3.1 non-blocking I/O to Reactive Streams bridge
 |===
 
 Here are required dependencies,
@@ -397,53 +397,54 @@ ApplicationContext context = ...
 HttpHandler handler = WebHttpHandlerBuilder.applicationContext(context).build()
 ----
 
+
+
+[[webflux-web-handler-api-special-beans]]
+==== Special bean types
+
 The table below lists the components that `WebHttpHandlerBuilder` detects:
 
 [cols="2,2,1,3", options="header"]
 |===
-|Bean name|Bean type|Count|Description
+| Bean name | Bean type | Count | Description
 
-|<any>
-|`WebExceptionHandler`
-|0..N
-|Exception handlers to apply after all ``WebFilter``'s and the target `WebHandler`.
+| <any>
+| `WebExceptionHandler`
+| 0..N
+| Exception handlers to apply after all ``WebFilter``'s and the target `WebHandler`.
 
-|<any>
-|`WebFilter`
-|0..N
-|Filters to invoke before and after the target `WebHandler`.
+| <any>
+| `WebFilter`
+| 0..N
+| Filters to invoke before and after the target `WebHandler`.
 
-|"webHandler"
-|`WebHandler`
-|1
-|The handler for the request.
+| "webHandler"
+| `WebHandler`
+| 1
+| The handler for the request.
 
-|"webSessionManager"
-|`WebSessionManager`
-|0..1
-|The manager for ``WebSession``'s exposed through a method on `ServerWebExchange`.
+| "webSessionManager"
+| `WebSessionManager`
+| 0..1
+| The manager for ``WebSession``'s exposed through a method on `ServerWebExchange`.
+  `DefaultWebSessionManager` by default.
 
-`DefaultWebSessionManager` by default.
+| "serverCodecConfigurer"
+| `ServerCodecConfigurer`
+| 0..1
+| For access to ``HttpMessageReader``'s for parsing form data and multipart data that's then
+  exposed through methods on `ServerWebExchange`. `ServerCodecConfigurer.create()` by default.
 
-|"serverCodecConfigurer"
-|`ServerCodecConfigurer`
-|0..1
-|For access to ``HttpMessageReader``'s for parsing form data and multipart data that's
-then exposed through methods on `ServerWebExchange`.
-
-`ServerCodecConfigurer.create()` by default.
-
-|"localeContextResolver"
-|`LocaleContextResolver`
-|0..1
-|The resolver for `LocaleContext` exposed through a method on `ServerWebExchange`.
-
-`AcceptHeaderLocaleContextResolver` by default.
+| "localeContextResolver"
+| `LocaleContextResolver`
+| 0..1
+| The resolver for `LocaleContext` exposed through a method on `ServerWebExchange`.
+  `AcceptHeaderLocaleContextResolver` by default.
 |===
 
 
 [[webflux-form-data]]
-==== Form Reader
+==== Form data
 
 `ServerWebExchange` exposes the following method for access to form data:
 [source,java,indent=0]
@@ -459,7 +460,7 @@ The `DefaultServerWebExchange` uses the configured `HttpMessageReader` to parse 
 
 
 [[webflux-multipart]]
-==== Multipart Reader
+==== Multipart data
 [.small]#<<web.adoc#mvc-multipart,Same in Spring MVC>>#
 
 `ServerWebExchange` exposes the following method for access to multipart data:
@@ -516,21 +517,22 @@ To configure or customize the readers and writers to use applications will typic
 `ClientCodecConfigurer` or `ServerCodecConfigurer`.
 
 
-
-[[webflux-codecs-jackson-json]]
-==== Jackson JSON
+[[webflux-codecs-jackson]]
+==== Jackson
 
 The decoder relies on Jackson's non-blocking, byte array parser to parse a stream of byte
 chunks into a `TokenBuffer` stream, which can then be turned into Objects with Jackson's
-`ObjectMapper`.
+`ObjectMapper`. JSON and https://github.com/FasterXML/smile-format-specification[Smile]
+(binary JSON) data formats are currently supported.
 
 The encoder processes a `Publisher<?>` as follows:
 
-* if the `Publisher` is a `Mono` (i.e. single value), the value is encoded to JSON.
-* if media type is `application/stream+json`, each value produced by the
-`Publisher` is encoded individually to JSON followed by a new line.
+* if the `Publisher` is a `Mono` (i.e. single value), the value is encoded when available.
+* if media type is `application/stream+json` for JSON or `application/stream+x-jackson-smile`
+  for Smile, each value produced by the `Publisher` is encoded individually (and followed
+  by a new line in JSON).
 * otherwise all items from the `Publisher` are gathered in with `Flux#collectToList()`
-and the resulting collection is encoded as a JSON array.
+and the resulting collection is encoded as an array.
 
 As a special case to the above rules the `ServerSentEventHttpMessageWriter` feeds items
 emitted from its input `Publisher` individually into the `Jackson2JsonEncoder` as a
@@ -541,6 +543,24 @@ elements of type `String`. Instead ``String``'s are treated as low level content
 serialized JSON) and are rendered as-is by the `CharSequenceEncoder`. If you want a
 `Flux<String>` rendered as a JSON array, you'll have to use `Flux#collectToList()` and
 provide a `Mono<List<String>>` instead.
+
+
+[[webflux-codecs-streaming]]
+==== HTTP Streaming
+[.small]#<<web.adoc#mvc-ann-async-http-streaming,Same in Spring MVC>>#
+
+When a multi-value, reactive type such as `Flux` is used for response rendering, it may
+be collected to a `List` and rendered as a whole (e.g. JSON array), or it may be treated
+as an infinite stream with each item flushed immediately. The determination for which is
+which is made based on content negotiation and the selected media type which may imply a
+streaming format (e.g. "text/event-stream", "application/stream+json"), or not
+(e.g. "application/json").
+
+When streaming to the HTTP response, regardless of the media type (e.g. text/event-stream,
+application/stream+json), it is important to send data periodically, since the write would
+fail if the client has disconnected. The send could take the form of an empty
+(comment-only) SSE event, or any other data that the other side would have to interpret as
+a heartbeat and ignore.
 
 
 
@@ -587,25 +607,28 @@ The resulting `HttpHandler` is ready for use with a
 [.small]#<<web.adoc#mvc-servlet-special-bean-types,Same in Spring MVC>>#
 
 The `DispatcherHandler` delegates to special beans to process requests and render the
-appropriate responses. By "special beans" we mean Spring-managed Object instances that
-implement one of the framework contracts listed in the table below.
-Spring WebFlux provides built-in implementations of these contracts but you can also
-customize, extend, or replace them.
+appropriate responses. By "special beans" we mean Spring-managed, Object instances that
+implement WebFlux framework contracts. Those usually come with built-in contracts but
+you can customize their properties, extend then, or replaced.
+
+The table below lists the special beans detected by the `DispatcherHandler`. Note that
+there are also some other beans detected at a lower level, see
+<<webflux-web-handler-api-special-beans>> in the Web Handler API.
 
 [[webflux-special-beans-table]]
 [cols="1,2", options="header"]
 |===
-| Bean type| Explanation
+| Bean type | Explanation
 
 | HandlerMapping
 | Map a request to a handler. The mapping is based on some criteria the details of
   which vary by `HandlerMapping` implementation -- annotated controllers, simple
   URL pattern mappings, etc.
 
-  The main `HandlerMapping` implementations are `RequestMappingHandlerMapping` based on
-  `@RequestMapping` annotated methods, `RouterFunctionMapping` based on functional
-  endpoint routes, and `SimpleUrlHandlerMapping` based on explicit registrations of URI
-  path patterns to handlers.
+  The main `HandlerMapping` implementations are `RequestMappingHandlerMapping` for
+  `@RequestMapping` annotated methods, `RouterFunctionMapping` for functional endpoint
+  routes, and `SimpleUrlHandlerMapping` for explicit registrations of URI path patterns
+  and ``WebHandler``'s.
 
 | HandlerAdapter
 | Help the `DispatcherHandler` to invoke a handler mapped to a request regardless of
@@ -615,25 +638,27 @@ customize, extend, or replace them.
 
 | HandlerResultHandler
 | Process the result from the handler invocation and finalize the response.
+  See <<webflux-resulthandling>>.
 
-  The built-in `HandlerResultHandler` implementations are `ResponseEntityResultHandler`
-  supporting `ResponseEntity` return values, `ResponseBodyResultHandler`
-  supporting `@ResponseBody` methods, `ServerResponseResultHandler`
-  supporting the `ServerResponse` returned from functional endpoints, and
-  `ViewResolutionResultHandler` supporting rendering with a view and a model.
 |===
 
 
 
 [[webflux-framework-config]]
-=== Framework Config
+=== WebFlux Config
 [.small]#<<web.adoc#mvc-servlet-config,Same in Spring MVC>>#
 
-The `DispatcherHandler` detects the special beans it needs in the `ApplicationContext`.
-Applications can declare the special beans they wish to have. However most applications
-will find a better starting point in the WebFlux Java config which provide a higher level
-configuration API that in turn make the necessary bean declarations.
-See <<webflux-config>> for more details.
+Applications can declare the infrastructure beans listed under
+<<webflux-web-handler-api-special-beans,Web Handler API>> and
+<<webflux-special-bean-types,DispatcherHandler>> that are required to process requests.
+However in most cases the <<webflux-config>> is the best starting point. It declares the
+required beans and provides a higher level configuration callback API to customize it.
+
+[NOTE]
+====
+Spring Boot relies on the WebFlux config to configure Spring WebFlux and also provides
+many extra convenient options.
+====
 
 
 
@@ -648,6 +673,109 @@ The `DispatcherHandler` processes requests as follows:
 exposes the return value from the execution as `HandlerResult`.
 * The `HandlerResult` is given to an appropriate `HandlerResultHandler` to complete
 processing by writing to the response directly or using a view to render.
+
+
+
+[[webflux-resulthandling]]
+=== Result Handling
+
+When `DispatcherHandler` needs to process the return value from a handler, it finds a
+`HandlerResultHandler` that support it and invokes it. The available implementations are
+listed below with their default order (all are declared in the <<webflux-config>>):
+
+* `ResponseEntityResultHandler` -- handles `ResponseEntity` return values typically
+returned from annotated controllers. The order is set to 0 since it safely matches return
+values by type.
+* `ServerResponseResultHandler` -- supports `ServerResponse` return values typically
+returned from functional endpoints. The order is set to 0 since it safely matches return
+values by type.
+* `ResponseBodyResultHandler` -- handles return values from `@ResponseBody` methods or
+`@RestController` classes. The order is set to 100, i.e. after result handlers that
+check for a specific type.
+* `ViewResolutionResultHandler` -- performs the <<webflux-viewresolution>> algorithm for
+HTML template rendering. The order is set to `Ordered.LOWEST_PRECEDENCE` since it
+supports several specific types, e.g. `String`, `Map`, `Rendering`, and others, but will
+also treat any other Object as a model attribute. This is why it needs to be last in
+the order.
+
+
+
+[[webflux-viewresolution]]
+=== View Resolution
+[.small]#<<web.adoc#mvc-viewresolver,Same in Spring MVC>>#
+
+View resolution enables rendering to a browser with an HTML template and a model without
+tying you to a specific view technology. In Spring WebFlux, view resolution is
+supported through a dedicated <<webflux-resulthandling,HandlerResultHandler>> that uses
+``ViewResolver``'s to map a String, representing a logical view name, to a `View`
+instance. The `View` is then used to render the response.
+
+
+[[webflux-viewresolution-handling]]
+==== Handling
+[.small]#<<web.adoc#mvc-handling,Same in Spring MVC>>#
+
+The `HandlerResult` passed into `ViewResolutionResultHandler` contains the return value
+from the handler, and also the model that contains attributes added during request
+handling. The  return value is processed as one of the following:
+
+* `String`, `CharSequence` -- a logical view name to be resolved to a `View` through
+the list of configured ``ViewResolver``'s.
+* `void` -- select a default view name based on the request path minus the leading and
+trailing slash, and resolve it to a `View`. The same also happens when a view name
+was not provided, e.g. model attribute was returned, or an async return value, e.g.
+`Mono` completed empty.
+* {api-spring-framework}/web/reactive/result/view/Rendering.html[Rendering] -- API for
+view resolution scenarios; explore the options in your IDE with code completion.
+* `Model`, `Map` -- extra model attributes to be added to the model for the request.
+* Any other -- any other return value (except for simple types, as determined by
+{api-spring-framework}/beans/BeanUtils.html#isSimpleProperty-java.lang.Class-[BeanUtils#isSimpleProperty])
+is treated as a model attribute to be added to the model. The attribute name is derived
+from the Class name, using {api-spring-framework}/core/Conventions.html[Conventions],
+unless a handler method `@ModelAttribute` annotation is present.
+
+The model can contain asynchronous, reactive types (e.g. from Reactor, RxJava). Prior
+to rendering, `AbstractView` resolves such model attributes into concrete values
+and updates the model. Single-value reactive types are resolved to a single
+value, or no value (if empty) while multi-value reactive types, e.g. `Flux<T>` are
+collected and resolved to `List<T>`.
+
+To configure view resolution is as simple as adding a `ViewResolutionResultHandler` bean
+to your Spring configuration. <<webflux-config-view-resolvers,WebFlux Config>> provides a
+dedicated configuration API for view resolution.
+
+See <<webflux-view>> for more on the view technologies integrated with Spring WebFlux.
+
+
+[[webflux-redirecting-redirect-prefix]]
+==== Redirecting
+[.small]#<<web.adoc#mvc-redirecting-redirect-prefix,Same in Spring MVC>>#
+
+The special `redirect:` prefix in a view name allows you to perform a redirect. The
+`UrlBasedViewResolver` (and sub-classes) recognize this as an instruction that a
+redirect is needed. The rest of the view name is the redirect URL.
+
+The net effect is the same as if the controller had returned a `RedirectView` or
+`Rendering.redirectTo("abc").build()`, but now the controller itself can simply
+operate in terms of logical view names. A view name such as
+`redirect:/some/resource` is relative to the current application, while the view name
+`redirect:http://example.com/arbitrary/path` redirects to an absolute URL.
+
+
+[[webflux-multiple-representations]]
+==== Content negotiation
+[.small]#<<web.adoc#mvc-multiple-representations,Same in Spring MVC>>#
+
+`ViewResolutionResultHandler` supports content negotiation. It compares the request
+media type(s) with the media type(s) supported by each selected `View`. The first `View`
+that supports the requested media type(s) is used.
+
+In order to support media types such as JSON and XML, Spring WebFlux provides
+`HttpMessageWriterView` which is a special `View` that renders through an
+<<webflux-codecs,HttpMessageWriter>>. Typically you would configure these as default
+views through the <<webflux-config-view-resolvers,WebFlux Config>>. Default views are
+always selected and used if they match the requested media type.
+
 
 
 
@@ -703,10 +831,10 @@ your Java configuration:
 	}
 ----
 
-`@RestController` is a composed annotation that is itself annotated with
-`@Controller` and `@ResponseBody` indicating a controller whose every method inherits the type-level
-`@ResponseBody` annotation and therefore writes to the response body (vs model-and-vew
-rendering).
+`@RestController` is a <<core.adoc#beans-meta-annotations,composed annotation>> that is
+itself meta-annotated with `@Controller` and `@ResponseBody` indicating a controller whose
+every method inherits the type-level `@ResponseBody` annotation and therefore writes
+directly to the response body vs view resolution and rendering with an HTML template.
 
 
 
@@ -727,10 +855,12 @@ There are also HTTP method specific shortcut variants of `@RequestMapping`:
 - `@DeleteMapping`
 - `@PatchMapping`
 
-The shortcut variants are
-https://github.com/spring-projects/spring-framework/wiki/Spring-Annotation-Programming-Model#composed-annotations[composed annotations]
--- themselves annotated with `@RequestMapping`. They are commonly used at the method level.
-At the class level an `@RequestMapping` is more useful for expressing shared mappings.
+The above are <<webflux-ann-requestmapping-composed>> that are provided out of the box
+because arguably most controller methods should be mapped to a specific HTTP method vs
+using `@RequestMapping` which by default matches to all HTTP methods. At the same an
+`@RequestMapping` is still needed at the class level to express shared mappings.
+
+Below is an example with type and method level mappings:
 
 [source,java,indent=0]
 [subs="verbatim,quotes"]
@@ -958,6 +1088,27 @@ supported HTTP methods for example by using the HTTP method specific variants --
 is not necessary in the common case.
 
 
+[[webflux-ann-requestmapping-composed]]
+==== Custom Annotations
+[.small]#<<web.adoc#mvc-ann-requestmapping-composed,Same in Spring MVC>>#
+
+Spring WebFlux supports the use of <<core.adoc#beans-meta-annotations,composed annotations>>
+for request mapping. Those are annotations that are themselves meta-annotated with
+`@RequestMapping` and composed to redeclare a subset (or all) of the `@RequestMapping`
+attributes with a narrower, more specific purpose.
+
+`@GetMapping`, `@PostMapping`, `@PutMapping`, `@DeleteMapping`, and `@PatchMapping` are
+examples of composed annotations. They're provided out of the box because arguably most
+controller methods should be mapped to a specific HTTP method vs using `@RequestMapping`
+which by default matches to all HTTP methods. If you need an example of composed
+annotations, look at how those are declared.
+
+Spring WebFlux also supports custom request mapping attributes with custom request matching
+logic. This is a more advanced option that requires sub-classing
+`RequestMappingHandlerMapping` and overriding the `getCustomMethodCondition` method where
+you can check the custom attribute and return your own `RequestCondition`.
+
+
 
 [[webflux-ann-methods]]
 === Handler methods
@@ -984,111 +1135,109 @@ etc, and is equivalent to `required=false`.
 
 [cols="1,2", options="header"]
 |===
-|Controller method argument|Description
+| Controller method argument | Description
 
-|`ServerWebExchange`
-|Access to the full `ServerWebExchange` -- container for the HTTP request and response,
-request and session attributes, `checkNotModified` methods, and others.
+| `ServerWebExchange`
+| Access to the full `ServerWebExchange` -- container for the HTTP request and response,
+  request and session attributes, `checkNotModified` methods, and others.
 
-|`ServerHttpRequest`, `ServerHttpResponse`
-|Access to the HTTP request or response.
+| `ServerHttpRequest`, `ServerHttpResponse`
+| Access to the HTTP request or response.
 
-|`WebSession`
-|Access to the session; this does not force the start of a new session unless attributes
-are added. Supports reactive types.
+| `WebSession`
+| Access to the session; this does not force the start of a new session unless attributes
+  are added. Supports reactive types.
 
-|`java.security.Principal`
-|Currently authenticated user; possibly a specific `Principal` implementation class if known.
-Supports reactive types.
+| `java.security.Principal`
+| Currently authenticated user; possibly a specific `Principal` implementation class if known.
+  Supports reactive types.
 
-|`org.springframework.http.HttpMethod`
-|The HTTP method of the request.
+| `org.springframework.http.HttpMethod`
+| The HTTP method of the request.
 
- |`java.util.Locale`
- |The current request locale, determined by the most specific `LocaleResolver` available, in
- effect, the configured `LocaleResolver`/`LocaleContextResolver`.
+| `java.util.Locale`
+| The current request locale, determined by the most specific `LocaleResolver` available, in
+  effect, the configured `LocaleResolver`/`LocaleContextResolver`.
 
-|Java 6+: `java.util.TimeZone` +
-Java 8+: `java.time.ZoneId`
-|The time zone associated with the current request, as determined by a `LocaleContextResolver`.
+| `java.util.TimeZone` + `java.time.ZoneId`
+| The time zone associated with the current request, as determined by a `LocaleContextResolver`.
 
-|`@PathVariable`
-|For access to URI template variables.
-See <<webflux-ann-requestmapping-uri-templates>>.
+| `@PathVariable`
+| For access to URI template variables. See <<webflux-ann-requestmapping-uri-templates>>.
 
-|`@MatrixVariable`
-|For access to name-value pairs in URI path segments. See <<webflux-ann-matrix-variables>>.
+| `@MatrixVariable`
+| For access to name-value pairs in URI path segments. See <<webflux-ann-matrix-variables>>.
 
-|`@RequestParam`
-|For access to Servlet request parameters. Parameter values are converted to the declared
-method argument type. See <<webflux-ann-requestparam>>.
+| `@RequestParam`
+| For access to Servlet request parameters. Parameter values are converted to the declared
+  method argument type. See <<webflux-ann-requestparam>>.
 
-Note that use of `@RequestParam` is optional, e.g. to set its attributes.
-See "Any other argument" further below in this table.
+  Note that use of `@RequestParam` is optional, e.g. to set its attributes.
+  See "Any other argument" further below in this table.
 
-|`@RequestHeader`
-|For access to request headers. Header values are converted to the declared method argument
-type. See <<webflux-ann-requestheader>>.
+| `@RequestHeader`
+| For access to request headers. Header values are converted to the declared method argument
+  type. See <<webflux-ann-requestheader>>.
 
-|`@CookieValue`
-|For access to cookies. Cookies values are converted to the declared method argument
-type. See <<webflux-ann-cookievalue>>.
+| `@CookieValue`
+| For access to cookies. Cookies values are converted to the declared method argument type.
+  See <<webflux-ann-cookievalue>>.
 
-|`@RequestBody`
-|For access to the HTTP request body. Body content is converted to the declared method
-argument type using ``HttpMessageReader``'s. Supports reactive types.
-<<webflux-ann-requestbody>>.
+| `@RequestBody`
+| For access to the HTTP request body. Body content is converted to the declared method
+  argument type using ``HttpMessageReader``'s. Supports reactive types.
+  See <<webflux-ann-requestbody>>.
 
-|`HttpEntity<B>`
-|For access to request headers and body. The body is converted with ``HttpMessageReader``'s.
-Supports reactive types. See <<webflux-ann-httpentity>>.
+| `HttpEntity<B>`
+| For access to request headers and body. The body is converted with ``HttpMessageReader``'s.
+  Supports reactive types. See <<webflux-ann-httpentity>>.
 
-|`@RequestPart`
-|For access to a part in  a "multipart/form-data" request. Supports reactive types.
-See <<webflux-multipart-forms>> and <<webflux-multipart>>.
+| `@RequestPart`
+| For access to a part in  a "multipart/form-data" request. Supports reactive types.
+  See <<webflux-multipart-forms>> and <<webflux-multipart>>.
 
-|`java.util.Map`, `org.springframework.ui.Model`, `org.springframework.ui.ModelMap`
-|For access to the model that is used in HTML controllers and exposed to templates as
-part of view rendering.
+| `java.util.Map`, `org.springframework.ui.Model`, `org.springframework.ui.ModelMap`
+| For access to the model that is used in HTML controllers and exposed to templates as
+  part of view rendering.
 
-|`@ModelAttribute`
-|For access to an existing attribute in the model (instantiated if not present) with
-data binding and validation applied. See <<webflux-ann-modelattrib-method-args>> as well
-as <<webflux-ann-modelattrib-methods>> and <<webflux-ann-initbinder>>.
+| `@ModelAttribute`
+| For access to an existing attribute in the model (instantiated if not present) with
+  data binding and validation applied. See <<webflux-ann-modelattrib-method-args>> as well
+  as <<webflux-ann-modelattrib-methods>> and <<webflux-ann-initbinder>>.
 
-Note that use of `@ModelAttribute` is optional, e.g. to set its attributes.
-See "Any other argument" further below in this table.
+  Note that use of `@ModelAttribute` is optional, e.g. to set its attributes.
+  See "Any other argument" further below in this table.
 
-|`Errors`, `BindingResult`
-|For access to errors from validation and data binding for a command object
-(i.e. `@ModelAttribute` argument), or errors from the validation of an `@RequestBody` or
-`@RequestPart` arguments; an `Errors`, or `BindingResult` argument must be declared
-immediately after the validated method argument.
+| `Errors`, `BindingResult`
+| For access to errors from validation and data binding for a command object
+  (i.e. `@ModelAttribute` argument), or errors from the validation of an `@RequestBody` or
+  `@RequestPart` arguments; an `Errors`, or `BindingResult` argument must be declared
+  immediately after the validated method argument.
 
-|`SessionStatus` + class-level `@SessionAttributes`
-|For marking form processing complete which triggers cleanup of session attributes
-declared through a class-level `@SessionAttributes` annotation. See
-<<webflux-ann-sessionattributes>> for more details.
+| `SessionStatus` + class-level `@SessionAttributes`
+| For marking form processing complete which triggers cleanup of session attributes
+  declared through a class-level `@SessionAttributes` annotation.
+  See <<webflux-ann-sessionattributes>> for more details.
 
-|`UriComponentsBuilder`
-|For preparing a URL relative to the current request's host, port, scheme, context path, and
-the literal  part of the servlet mapping also taking into account `Forwarded` and
-`X-Forwarded-*` headers.
-// See <<webflux-uri-building>>.
+| `UriComponentsBuilder`
+| For preparing a URL relative to the current request's host, port, scheme, context path, and
+  the literal  part of the servlet mapping also taking into account `Forwarded` and
+  `X-Forwarded-*` headers.
+  // TODO: See <<webflux-uri-building>>.
 
-|`@SessionAttribute`
-|For access to any session attribute; in contrast to model attributes stored in the session
-as a result of a class-level `@SessionAttributes` declaration. See
-<<webflux-ann-sessionattribute>> for more details.
+| `@SessionAttribute`
+| For access to any session attribute; in contrast to model attributes stored in the session
+  as a result of a class-level `@SessionAttributes` declaration. See
+  <<webflux-ann-sessionattribute>> for more details.
 
-|`@RequestAttribute`
-|For access to request attributes. See <<webflux-ann-requestattrib>> for more details.
+| `@RequestAttribute`
+| For access to request attributes. See <<webflux-ann-requestattrib>> for more details.
 
-|Any other argument
-|If a method argument is not matched to any of the above, by default it is resolved as
-an `@RequestParam` if it is a simple type, as determined by
-{api-spring-framework}/beans/BeanUtils.html#isSimpleProperty-java.lang.Class-[BeanUtils#isSimpleProperty],
-or as an `@ModelAttribute` otherwise.
+| Any other argument
+| If a method argument is not matched to any of the above, by default it is resolved as
+  an `@RequestParam` if it is a simple type, as determined by
+  {api-spring-framework}/beans/BeanUtils.html#isSimpleProperty-java.lang.Class-[BeanUtils#isSimpleProperty],
+  or as an `@ModelAttribute` otherwise.
 |===
 
 
@@ -1096,72 +1245,72 @@ or as an `@ModelAttribute` otherwise.
 ==== Return values
 [.small]#<<web.adoc#mvc-ann-return-types,Same in Spring MVC>>#
 
-The table below shows supported controller method return values. Reactive types --
-Reactor, RxJava, <<webflux-reactive-libraries,or other>> are supported for all return
-values.
+The table below shows supported controller method return values. Note that reactive types
+from libraries such as Reactor, RxJava, <<webflux-reactive-libraries,or other>> are
+generally supported for all return values.
 
 [cols="1,2", options="header"]
 |===
-|Controller method return value|Description
+| Controller method return value | Description
 
-|`@ResponseBody`
-|The return value is encoded through ``HttpMessageWriter``s and written to the response.
-See <<webflux-ann-responsebody>>.
+| `@ResponseBody`
+| The return value is encoded through ``HttpMessageWriter``'s and written to the response.
+  See <<webflux-ann-responsebody>>.
 
-|`HttpEntity<B>`, `ResponseEntity<B>`
-|The return value specifies the full response including HTTP headers and body be encoded
-through ``HttpMessageWriter``s and written to the response.
-See <<webflux-ann-responseentity>>.
+| `HttpEntity<B>`, `ResponseEntity<B>`
+| The return value specifies the full response including HTTP headers and body be encoded
+  through ``HttpMessageWriter``'s and written to the response.
+  See <<webflux-ann-responseentity>>.
 
-|`HttpHeaders`
-|For returning a response with headers and no body.
+| `HttpHeaders`
+| For returning a response with headers and no body.
 
-|`String`
-|A view name to be resolved with ``ViewResolver``'s and used together with the implicit
-model -- determined through command objects and `@ModelAttribute` methods. The handler
-method may also programmatically enrich the model by declaring a `Model` argument (see
-above).
+| `String`
+| A view name to be resolved with ``ViewResolver``'s and used together with the implicit
+  model -- determined through command objects and `@ModelAttribute` methods. The handler
+  method may also programmatically enrich the model by declaring a `Model` argument
+  (see above).
 
-|`View`
-|A `View` instance to use for rendering together with the implicit model -- determined
-through command objects and `@ModelAttribute` methods. The handler method may also
-programmatically enrich the model by declaring a `Model` argument (see above).
+| `View`
+| A `View` instance to use for rendering together with the implicit model -- determined
+  through command objects and `@ModelAttribute` methods. The handler method may also
+  programmatically enrich the model by declaring a `Model` argument (see above).
 
-|`java.util.Map`, `org.springframework.ui.Model`
-|Attributes to be added to the implicit model with the view name implicitly determined
-based on the request path.
+| `java.util.Map`, `org.springframework.ui.Model`
+| Attributes to be added to the implicit model with the view name implicitly determined
+  based on the request path.
 
-|`@ModelAttribute`
-|An attribute to be added to the model with the view name implicitly determined based
-on the request path.
+| `@ModelAttribute`
+| An attribute to be added to the model with the view name implicitly determined based
+  on the request path.
 
-Note that `@ModelAttribute` is optional. See "Any other return value" further below in
-this table.
+  Note that `@ModelAttribute` is optional. See "Any other return value" further below in
+  this table.
 
-|`Rendering`
-|An API for model and view rendering scenarios.
+| `Rendering`
+| An API for model and view rendering scenarios.
 
-|`void`
-|A method with a `void`, possibly async (e.g. `Mono<Void>`), return type (or a `null` return
-value) is considered to have fully handled the response if it also has a `ServerHttpResponse`,
-or a `ServerWebExchange` argument, or an `@ResponseStatus` annotation. The same is true also
-if the controller has made a positive ETag or lastModified timestamp check.
-// TODO (see <<webflux-caching-etag-lastmodified>> for details)
+| `void`
+| A method with a `void`, possibly async (e.g. `Mono<Void>`), return type (or a `null` return
+  value) is considered to have fully handled the response if it also has a `ServerHttpResponse`,
+  or a `ServerWebExchange` argument, or an `@ResponseStatus` annotation. The same is true also
+  if the controller has made a positive ETag or lastModified timestamp check.
+  // TODO: See <<webflux-caching-etag-lastmodified>> for details.
 
-If none of the above is true, a `void` return type may also indicate "no response body" for
-REST controllers, or default view name selection for HTML controllers.
+  If none of the above is true, a `void` return type may also indicate "no response body" for
+  REST controllers, or default view name selection for HTML controllers.
 
-|`Flux<ServerSentEvent>`, `Observable<ServerSentEvent>`, or other reactive type
-|Emit server-sent events; the `SeverSentEvent` wrapper can be omitted when only data needs
-to be written (however `text/event-stream` must be requested or declared in the mapping
-through the produces attribute).
+| `Flux<ServerSentEvent>`, `Observable<ServerSentEvent>`, or other reactive type
+| Emit server-sent events; the `SeverSentEvent` wrapper can be omitted when only data needs
+  to be written (however `text/event-stream` must be requested or declared in the mapping
+  through the produces attribute).
 
-|Any other return value
-|If a return value is not matched to any of the above, by default it is treated as a view
-name, if it is `String` or `void` (default view name selection applies); or as a model
-attribute to be added to the model, unless it is a simple type, as determined by
-{api-spring-framework}/beans/BeanUtils.html#isSimpleProperty-java.lang.Class-[BeanUtils#isSimpleProperty]
-in which case it remains unresolved.
+| Any other return value
+| If a return value is not matched to any of the above, by default it is treated as a view
+  name, if it is `String` or `void` (default view name selection applies); or as a model
+  attribute to be added to the model, unless it is a simple type, as determined by
+  {api-spring-framework}/beans/BeanUtils.html#isSimpleProperty-java.lang.Class-[BeanUtils#isSimpleProperty]
+  in which case it remains unresolved.
 |===
 
 
@@ -1770,10 +1919,11 @@ than a meta-annotation marked with `@Controller` and `@ResponseBody`.
 
 `@ResponseBody` supports reactive types which means you can return Reactor or RxJava
 types and have the asynchronous values they produce rendered to the response.
-For additional details on JSON rendering see <<webflux-codecs-jackson-json>>.
+For additional details, see <<webflux-codecs-streaming>> and
+<<webflux-codecs-jackson,JSON rendering>>.
 
 `@ResponseBody` methods can be combined with JSON serialization views.
-See <<mvc-ann-jackson>> for details.
+See <<webflux-ann-jackson>> for details.
 
 You can use the <<webflux-config-message-codecs>> option of the <<webflux-config>> to
 configure or customize message writing.
@@ -2059,6 +2209,17 @@ Javadoc for more details.
 
 
 
+[[mvc-uri-building]]
+== URI Links
+[.small]#<<web.adoc#mvc-uri-building,Same in Spring MVC>>#
+
+This section describes various options available in the Spring Framework to prepare URIs.
+
+
+include::web-uris.adoc[leveloffset=+2]
+
+
+
 
 include::webflux-functional.adoc[leveloffset=+1]
 
@@ -2082,6 +2243,11 @@ reference documentation including:
 * {doc-spring-security}/html5/#test-webflux["WebFlux Testing Support"]
 * {doc-spring-security}/html5/#csrf[CSRF Protection]
 * {doc-spring-security}/html5/#headers[Security Response Headers]
+
+
+
+
+include::webflux-view.adoc[leveloffset=+1]
 
 
 
@@ -2312,7 +2478,9 @@ To configure view resolution:
 	}
 ----
 
-Note that FreeMarker also requires configuration of the underlying view technology:
+The `ViewResolverRegistry` has shortcuts for view technologies that the Spring Framework
+integrates with. Here is an example with FreeMarker which also requires configuring the
+underlying FreeMarker view technology:
 
 [source,java,indent=0]
 [subs="verbatim,quotes"]
@@ -2321,7 +2489,13 @@ Note that FreeMarker also requires configuration of the underlying view technolo
 	@EnableWebFlux
 	public class WebConfig implements WebFluxConfigurer {
 
-		// ...
+
+		@Override
+		public void configureViewResolvers(ViewResolverRegistry registry) {
+			registry.freeMarker();
+		}
+
+		// Configure Freemarker...
 
 		@Bean
 		public FreeMarkerConfigurer freeMarkerConfigurer() {
@@ -2329,9 +2503,54 @@ Note that FreeMarker also requires configuration of the underlying view technolo
 			configurer.setTemplateLoaderPath("classpath:/templates");
 			return configurer;
 		}
-
 	}
 ----
+
+You can also plug in any `ViewResolver` implementation:
+
+[source,java,indent=0]
+[subs="verbatim,quotes"]
+----
+	@Configuration
+	@EnableWebFlux
+	public class WebConfig implements WebFluxConfigurer {
+
+
+		@Override
+		public void configureViewResolvers(ViewResolverRegistry registry) {
+			ViewResolver resolver = ... ;
+			registry.viewResolver(resolver);
+		}
+	}
+----
+
+To support <<webflux-multiple-representations>> and rendering other formats
+through view resolution, besides HTML, you can configure one or more default views based
+on the `HttpMessageWriterView` implementation which accepts any of the available
+<<webflux-codecs>> from `spring-web`:
+
+[source,java,indent=0]
+[subs="verbatim,quotes"]
+----
+	@Configuration
+	@EnableWebFlux
+	public class WebConfig implements WebFluxConfigurer {
+
+
+		@Override
+		public void configureViewResolvers(ViewResolverRegistry registry) {
+			registry.freeMarker();
+
+			Jackson2JsonEncoder encoder = new Jackson2JsonEncoder();
+			registry.defaultViews(new HttpMessageWriterView(encoder));
+		}
+
+		// ...
+	}
+----
+
+See <<webflux-view>> for more on the view technologies integrated with Spring WebFlux.
+
 
 
 
@@ -2365,8 +2584,7 @@ evaluated and if present a `304` status code is returned.
 	}
 ----
 
-// TODO:
-// See also <<webflux-caching-static-resources, HTTP caching support for static resources>>.
+// TODO: See also <<webflux-caching-static-resources, HTTP caching support for static resources>>.
 
 The resource handler also supports a chain of
 {api-spring-framework}/web/reactive/resource/ResourceResolver.html[ResourceResolver]'s and
@@ -2402,8 +2620,8 @@ You can use `ResourceUrlProvider` to rewrite URLs and apply the full chain of re
 transformers -- e.g. to insert versions. The WebFlux config provides a `ResourceUrlProvider`
 so it can be injected into others.
 
-Unlike Spring MVC at present in WebFlux there is no way to transparely rewrite static
-resource URLs since the are no view technologies that can make use of a non-blocking chain
+Unlike Spring MVC at present in WebFlux there is no way to transparently rewrite static
+resource URLs since there are no view technologies that can make use of a non-blocking chain
 of resolvers and transformers (e.g. resources on Amazon S3). When serving only local
 resources the workaround is to use `ResourceUrlProvider` directly (e.g. through a custom
 tag) and block for 0 seconds.

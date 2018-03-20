@@ -103,16 +103,14 @@ public class XmlEventDecoder extends AbstractDecoder<XMLEvent> {
 					.doFinally(signalType -> aaltoMapper.endOfInput());
 		}
 		else {
-			Mono<DataBuffer> singleBuffer = DataBufferUtils.compose(flux);
+			Mono<DataBuffer> singleBuffer = DataBufferUtils.join(flux);
 			return singleBuffer.
 					flatMapMany(dataBuffer -> {
 						try {
 							InputStream is = dataBuffer.asInputStream();
 							Iterator eventReader = inputFactory.createXMLEventReader(is);
 							return Flux.fromIterable((Iterable<XMLEvent>) () -> eventReader)
-									.doFinally(t -> {
-										DataBufferUtils.release(dataBuffer);
-									});
+									.doFinally(t -> DataBufferUtils.release(dataBuffer));
 						}
 						catch (XMLStreamException ex) {
 							return Mono.error(ex);
