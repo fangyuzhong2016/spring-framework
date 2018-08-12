@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package org.springframework.web.reactive.result.condition;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -51,7 +50,7 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 
 
 	private final List<ProduceMediaTypeExpression> mediaTypeAllList =
-			Collections.singletonList(new ProduceMediaTypeExpression("*/*"));
+			Collections.singletonList(new ProduceMediaTypeExpression(MediaType.ALL_VALUE));
 
 	private final List<ProduceMediaTypeExpression> expressions;
 
@@ -191,14 +190,9 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 		if (isEmpty()) {
 			return this;
 		}
-		Set<ProduceMediaTypeExpression> result = new LinkedHashSet<>(expressions);
-		for (Iterator<ProduceMediaTypeExpression> iterator = result.iterator(); iterator.hasNext();) {
-			ProduceMediaTypeExpression expression = iterator.next();
-			if (!expression.match(exchange)) {
-				iterator.remove();
-			}
-		}
-		return (result.isEmpty()) ? null : new ProducesRequestCondition(result, this.contentTypeResolver);
+		Set<ProduceMediaTypeExpression> result = new LinkedHashSet<>(this.expressions);
+		result.removeIf(expression -> !expression.match(exchange));
+		return (!result.isEmpty() ? new ProducesRequestCondition(result, this.contentTypeResolver) : null);
 	}
 
 	/**
@@ -244,11 +238,8 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 		}
 	}
 
-	private List<MediaType> getAcceptedMediaTypes(ServerWebExchange exchange)
-			throws NotAcceptableStatusException {
-
-		List<MediaType> mediaTypes = this.contentTypeResolver.resolveMediaTypes(exchange);
-		return mediaTypes.isEmpty() ? Collections.singletonList(MediaType.ALL) : mediaTypes;
+	private List<MediaType> getAcceptedMediaTypes(ServerWebExchange exchange) throws NotAcceptableStatusException {
+		return this.contentTypeResolver.resolveMediaTypes(exchange);
 	}
 
 	private int indexOfEqualMediaType(MediaType mediaType) {
@@ -282,17 +273,17 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 			ProduceMediaTypeExpression expr1 = condition1.getExpressionsToCompare().get(index1);
 			ProduceMediaTypeExpression expr2 = condition2.getExpressionsToCompare().get(index2);
 			result = expr1.compareTo(expr2);
-			result = (result != 0) ? result : expr1.getMediaType().compareTo(expr2.getMediaType());
+			result = (result != 0 ? result : expr1.getMediaType().compareTo(expr2.getMediaType()));
 		}
 		return result;
 	}
 
 	/**
 	 * Return the contained "produces" expressions or if that's empty, a list
-	 * with a {@code MediaType_ALL} expression.
+	 * with a {@value MediaType#ALL_VALUE} expression.
 	 */
 	private List<ProduceMediaTypeExpression> getExpressionsToCompare() {
-		return (this.expressions.isEmpty() ? mediaTypeAllList  : this.expressions);
+		return (this.expressions.isEmpty() ? this.mediaTypeAllList  : this.expressions);
 	}
 
 

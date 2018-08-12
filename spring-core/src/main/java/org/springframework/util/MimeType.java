@@ -401,7 +401,7 @@ public class MimeType implements Comparable<MimeType>, Serializable {
 	/**
 	 * Determine if the parameters in this {@code MimeType} and the supplied
 	 * {@code MimeType} are equal, performing case-insensitive comparisons
-	 * for {@link Charset}s.
+	 * for {@link Charset Charsets}.
 	 * @since 4.2
 	 */
 	private boolean parametersAreEqual(MimeType other) {
@@ -409,7 +409,8 @@ public class MimeType implements Comparable<MimeType>, Serializable {
 			return false;
 		}
 
-		for (String key : this.parameters.keySet()) {
+		for (Map.Entry<String, String> entry : this.parameters.entrySet()) {
+			String key = entry.getKey();
 			if (!other.parameters.containsKey(key)) {
 				return false;
 			}
@@ -418,7 +419,7 @@ public class MimeType implements Comparable<MimeType>, Serializable {
 					return false;
 				}
 			}
-			else if (!ObjectUtils.nullSafeEquals(this.parameters.get(key), other.parameters.get(key))) {
+			else if (!ObjectUtils.nullSafeEquals(entry.getValue(), other.parameters.get(key))) {
 				return false;
 			}
 		}
@@ -541,6 +542,11 @@ public class MimeType implements Comparable<MimeType>, Serializable {
 	}
 
 
+	/**
+	 * Comparator to sort {@link MimeType MimeTypes} in order of specificity.
+	 *
+	 * @param <T> the type of mime types that may be compared by this comparator
+	 */
 	public static class SpecificityComparator<T extends MimeType> implements Comparator<T> {
 
 		@Override

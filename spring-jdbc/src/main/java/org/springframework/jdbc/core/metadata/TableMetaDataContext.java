@@ -244,20 +244,28 @@ public class TableMetaDataContext {
 	 * @param inParameters the parameter names and values
 	 */
 	public List<Object> matchInParameterValuesWithInsertColumns(Map<String, ?> inParameters) {
-		List<Object> values = new ArrayList<>();
-		Map<String, Object> source = new LinkedHashMap<>(inParameters.size());
-		for (String key : inParameters.keySet()) {
-			source.put(key.toLowerCase(), inParameters.get(key));
-		}
+		List<Object> values = new ArrayList<>(inParameters.size());
 		for (String column : this.tableColumns) {
-			values.add(source.get(column.toLowerCase()));
+			Object value = inParameters.get(column);
+			if (value == null) {
+				value = inParameters.get(column.toLowerCase());
+				if (value == null) {
+					for (Map.Entry<String, ?> entry : inParameters.entrySet()) {
+						if (column.equalsIgnoreCase(entry.getKey())) {
+							value = entry.getValue();
+							break;
+						}
+					}
+				}
+			}
+			values.add(value);
 		}
 		return values;
 	}
 
 
 	/**
-	 * Build the insert string based on configuration and meta-data information
+	 * Build the insert string based on configuration and meta-data information.
 	 * @return the insert string to be used
 	 */
 	public String createInsertString(String... generatedKeyNames) {
@@ -286,8 +294,10 @@ public class TableMetaDataContext {
 		insertStatement.append(") VALUES(");
 		if (columnCount < 1) {
 			if (this.generatedKeyColumnsUsed) {
-				logger.info("Unable to locate non-key columns for table '" +
-						getTableName() + "' so an empty insert statement is generated");
+				if (logger.isDebugEnabled()) {
+					logger.debug("Unable to locate non-key columns for table '" +
+							getTableName() + "' so an empty insert statement is generated");
+				}
 			}
 			else {
 				throw new InvalidDataAccessApiUsageException("Unable to locate columns for table '" +
@@ -353,6 +363,9 @@ public class TableMetaDataContext {
 	}
 
 	/**
+	 * Does this database support a simple query to retrieve generated keys
+	 * when the JDBC 3.0 feature is not supported:
+	 * {@link java.sql.DatabaseMetaData#supportsGetGeneratedKeys()}?
 	 * @deprecated as of 4.3.15, in favor of {@link #getSimpleQueryForGetGeneratedKey}
 	 */
 	@Deprecated

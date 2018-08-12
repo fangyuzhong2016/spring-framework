@@ -38,15 +38,19 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
- * A highly configurable {@link EvaluationContext} implementation.
- *
- * <p>This context uses standard implementations of all applicable strategies,
+ * A powerful and highly configurable {@link EvaluationContext} implementation.
+ * This context uses standard implementations of all applicable strategies,
  * based on reflection to resolve properties, methods and fields.
+ *
+ * <p>For a simpler builder-style context variant for data-binding purposes,
+ * consider using {@link SimpleEvaluationContext} instead which allows for
+ * opting into several SpEL features as needed by specific evaluation cases.
  *
  * @author Andy Clement
  * @author Juergen Hoeller
  * @author Sam Brannen
  * @since 3.0
+ * @see SimpleEvaluationContext
  * @see ReflectivePropertyAccessor
  * @see ReflectiveConstructorResolver
  * @see ReflectiveMethodResolver
@@ -199,7 +203,7 @@ public class StandardEvaluationContext implements EvaluationContext {
 	@Override
 	public TypeConverter getTypeConverter() {
 		if (this.typeConverter == null) {
-			 this.typeConverter = new StandardTypeConverter();
+			this.typeConverter = new StandardTypeConverter();
 		}
 		return this.typeConverter;
 	}

@@ -9,8 +9,10 @@ existing libraries written in Java.
 The Spring Framework provides first-class support for Kotlin that allows developers to write
 Kotlin applications almost as if the Spring Framework was a native Kotlin framework.
 
-Feel free to join the #spring channel of http://slack.kotlinlang.org/[Kotlin Slack] or ask
-a question with `spring` and `kotlin` tags on
+The easiest way to learn about Spring + Kotlin is to follow
+https://spring.io/guides/tutorials/spring-boot-kotlin/[this comprehensive tutorial]. Feel
+free to join the #spring channel of http://slack.kotlinlang.org/[Kotlin Slack] or ask a
+question with `spring` and `kotlin` tags on
 https://stackoverflow.com/questions/tagged/spring+kotlin[Stackoverflow] if you need support.
 
 
@@ -166,11 +168,11 @@ type `Bar` may or may not exist. The same behavior applies to autowired construc
 
 [NOTE]
 ====
-If you are using bean validation on classes with
-https://kotlinlang.org/docs/reference/classes.html#constructors[primary constructor properties],
-make sure to use
+If you are using bean validation on classes with properties or a primary constructor
+parameters, you may need to leverage
 https://kotlinlang.org/docs/reference/annotations.html#annotation-use-site-targets[annotation use-site targets]
-as described in https://stackoverflow.com/a/35853200/1092077[this Stack Overflow response].
+like `@field:NotNull` or `@get:Size(min=5, max=15)` as described in
+https://stackoverflow.com/a/35853200/1092077[this Stack Overflow response].
 ====
 
 
@@ -663,13 +665,11 @@ class SpecificationLikeTests {
 [[kotlin-webtestclient-issue]]
 ==== `WebTestClient` type inference issue in Kotlin
 
-`WebTestClient` is not usable yet in Kotlin due to a
-https://youtrack.jetbrains.com/issue/KT-5464[type inference issue] which is
-expected to be fixed as of Kotlin 1.3. You can watch
-https://jira.spring.io/browse/SPR-16057[SPR-16057] for up-to-date information. Meanwhile,
-the proposed alternative is to use directly `WebClient` with its Reactor and Spring Kotlin
-extensions to perform integration tests on an embedded WebFlux server.
+Due to a https://youtrack.jetbrains.com/issue/KT-5464[type inference issue], make sure to
+use Kotlin `expectBody` extension (like `.expectBody<String>().isEqualTo("foo")`) since it
+provides a workaround for the Kotlin issue with the Java API.
 
+See also the related https://jira.spring.io/browse/SPR-16057[SPR-16057] issue.
 
 
 
@@ -715,6 +715,13 @@ MVC and its annotation-based programming model is a perfectly valid and fully su
 
 
 
+=== Tutorials
+
+* https://spring.io/guides/tutorials/spring-boot-kotlin/[Building web applications with Spring Boot and Kotlin]
+* https://kotlinlang.org/docs/tutorials/spring-boot-restful.html[Creating a RESTful Web Service with Spring Boot]
+
+
+
 === Blog posts
 
 * https://spring.io/blog/2016/02/15/developing-spring-boot-applications-with-kotlin[Developing Spring Boot applications with Kotlin]
@@ -732,12 +739,6 @@ MVC and its annotation-based programming model is a perfectly valid and fully su
 * https://github.com/sdeleuze/spring-kotlin-fullstack[spring-kotlin-fullstack]: WebFlux Kotlin fullstack example with Kotlin2js for frontend instead of JavaScript or TypeScript
 * https://github.com/spring-petclinic/spring-petclinic-kotlin[spring-petclinic-kotlin]: Kotlin version of the Spring PetClinic Sample Application
 * https://github.com/sdeleuze/spring-kotlin-deepdive[spring-kotlin-deepdive]: a step by step migration for Boot 1.0 + Java to Boot 2.0 + Kotlin
-
-
-
-=== Tutorials
-
-* https://kotlinlang.org/docs/tutorials/spring-boot-restful.html[Creating a RESTful Web Service with Spring Boot]
 
 
 
@@ -768,7 +769,6 @@ Here is a list of pending issues related to Spring + Kotlin support.
 * https://youtrack.jetbrains.com/issue/KT-5464[Kotlin requires type inference where Java doesn't]
 * https://github.com/Kotlin/KEEP/issues/79[Better generics null-safety support]
 * https://youtrack.jetbrains.com/issue/KT-20283[Smart cast regression with open classes]
-* https://youtrack.jetbrains.com/issue/KT-18833[JSR-223 application classpath not available when using Java 9]
 * https://youtrack.jetbrains.com/issue/KT-14984[Impossible to pass not all SAM argument as function]
 * https://youtrack.jetbrains.com/issue/KT-19592[Apply JSR 305 meta-annotations to generic type parameters]
 * https://youtrack.jetbrains.com/issue/KT-18398[Provide a way for libraries to avoid mixing Kotlin 1.0 and 1.1 dependencies]

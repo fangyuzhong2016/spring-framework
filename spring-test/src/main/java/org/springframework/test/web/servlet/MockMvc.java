@@ -35,6 +35,7 @@ import org.springframework.util.Assert;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.servlet.DispatcherServlet;
 
 /**
  * <strong>Main entry point for server-side Spring MVC test support.</strong>
@@ -89,6 +90,7 @@ public final class MockMvc {
 		Assert.notNull(servlet, "DispatcherServlet is required");
 		Assert.notNull(filters, "Filters cannot be null");
 		Assert.noNullElements(filters, "Filters cannot contain null values");
+
 		this.servlet = servlet;
 		this.filters = filters;
 		this.servletContext = servlet.getServletContext();
@@ -120,6 +122,22 @@ public final class MockMvc {
 		Assert.notNull(resultHandlers, "ResultHandler List is required");
 		this.defaultResultHandlers = resultHandlers;
 	}
+
+	/**
+	 * Return the underlying {@link DispatcherServlet} instance that this
+	 * {@code MockMvc} was initialized with.
+	 * <p>This is intended for use in custom request processing scenario where a
+	 * request handling component happens to delegate to the {@code DispatcherServlet}
+	 * at runtime and therefore needs to be injected with it.
+	 * <p>For most processing scenarios, simply use {@link MockMvc#perform},
+	 * or if you need to configure the {@code DispatcherServlet}, provide a
+	 * {@link DispatcherServletCustomizer} to the {@code MockMvcBuilder}.
+	 * @since 5.1
+	 */
+	public DispatcherServlet getDispatcherServlet() {
+		return this.servlet;
+	}
+
 
 	/**
 	 * Perform a request and return a type that allows chaining further
@@ -164,7 +182,7 @@ public final class MockMvc {
 		filterChain.doFilter(request, servletResponse);
 
 		if (DispatcherType.ASYNC.equals(request.getDispatcherType()) &&
-				asyncContext != null & !request.isAsyncStarted()) {
+				asyncContext != null && !request.isAsyncStarted()) {
 			asyncContext.complete();
 		}
 
@@ -201,7 +219,6 @@ public final class MockMvc {
 		for (ResultMatcher matcher : this.defaultResultMatchers) {
 			matcher.match(mvcResult);
 		}
-
 		for (ResultHandler handler : this.defaultResultHandlers) {
 			handler.handle(mvcResult);
 		}

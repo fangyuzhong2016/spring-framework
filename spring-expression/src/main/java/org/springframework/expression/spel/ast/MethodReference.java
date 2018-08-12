@@ -131,7 +131,7 @@ public class MethodReference extends SpelNodeImpl {
 		}
 
 		// either there was no accessor or it no longer existed
-		executorToUse = findAccessorForMethod(this.name, argumentTypes, value, evaluationContext);
+		executorToUse = findAccessorForMethod(argumentTypes, value, evaluationContext);
 		this.cachedExecutor = new CachedMethodExecutor(
 				executorToUse, (value instanceof Class ? (Class<?>) value : null), targetType, argumentTypes);
 		try {
@@ -182,8 +182,7 @@ public class MethodReference extends SpelNodeImpl {
 			@Nullable TypeDescriptor target, List<TypeDescriptor> argumentTypes) {
 
 		List<MethodResolver> methodResolvers = evaluationContext.getMethodResolvers();
-		if (methodResolvers.size() != 1 ||
-				!(methodResolvers.get(0) instanceof ReflectiveMethodResolver)) {
+		if (methodResolvers.size() != 1 || !(methodResolvers.get(0) instanceof ReflectiveMethodResolver)) {
 			// Not a default ReflectiveMethodResolver - don't know whether caching is valid
 			return null;
 		}
@@ -196,33 +195,40 @@ public class MethodReference extends SpelNodeImpl {
 		return null;
 	}
 
-	private MethodExecutor findAccessorForMethod(String name, List<TypeDescriptor> argumentTypes,
-			Object targetObject, EvaluationContext evaluationContext) throws SpelEvaluationException {
+	private MethodExecutor findAccessorForMethod(List<TypeDescriptor> argumentTypes, Object targetObject,
+			EvaluationContext evaluationContext) throws SpelEvaluationException {
 
+		AccessException accessException = null;
 		List<MethodResolver> methodResolvers = evaluationContext.getMethodResolvers();
 		for (MethodResolver methodResolver : methodResolvers) {
 			try {
 				MethodExecutor methodExecutor = methodResolver.resolve(
-						evaluationContext, targetObject, name, argumentTypes);
+						evaluationContext, targetObject, this.name, argumentTypes);
 				if (methodExecutor != null) {
 					return methodExecutor;
 				}
 			}
 			catch (AccessException ex) {
-				throw new SpelEvaluationException(getStartPosition(), ex,
-						SpelMessage.PROBLEM_LOCATING_METHOD, name, targetObject.getClass());
+				accessException = ex;
+				break;
 			}
 		}
 
-		throw new SpelEvaluationException(getStartPosition(), SpelMessage.METHOD_NOT_FOUND,
-				FormatHelper.formatMethodForMessage(name, argumentTypes),
-				FormatHelper.formatClassNameForMessage(
-						targetObject instanceof Class ? ((Class<?>) targetObject) : targetObject.getClass()));
+		String method = FormatHelper.formatMethodForMessage(this.name, argumentTypes);
+		String className = FormatHelper.formatClassNameForMessage(
+				targetObject instanceof Class ? ((Class<?>) targetObject) : targetObject.getClass());
+		if (accessException != null) {
+			throw new SpelEvaluationException(
+					getStartPosition(), accessException, SpelMessage.PROBLEM_LOCATING_METHOD, method, className);
+		}
+		else {
+			throw new SpelEvaluationException(getStartPosition(), SpelMessage.METHOD_NOT_FOUND, method, className);
+		}
 	}
 
 	/**
-	 * Decode the AccessException, throwing a lightweight evaluation exception or, if the
-	 * cause was a RuntimeException, throw the RuntimeException directly.
+	 * Decode the AccessException, throwing a lightweight evaluation exception or,
+	 * if the cause was a RuntimeException, throw the RuntimeException directly.
 	 */
 	private void throwSimpleExceptionIfPossible(Object value, AccessException ex) {
 		if (ex.getCause() instanceof InvocationTargetException) {
@@ -242,7 +248,7 @@ public class MethodReference extends SpelNodeImpl {
 			Method method = ((ReflectiveMethodExecutor) executorToCheck.get()).getMethod();
 			String descriptor = CodeFlow.toDescriptor(method.getReturnType());
 			if (this.nullSafe && CodeFlow.isPrimitive(descriptor)) {
-				originalPrimitiveExitTypeDescriptor = descriptor;
+				this.originalPrimitiveExitTypeDescriptor = descriptor;
 				this.exitTypeDescriptor = CodeFlow.toBoxedDescriptor(descriptor);
 			}
 			else {
@@ -294,7 +300,7 @@ public class MethodReference extends SpelNodeImpl {
 
 		return true;
 	}
-	
+
 	@Override
 	public void generateCode(MethodVisitor mv, CodeFlow cf) {
 		CachedMethodExecutor executorToCheck = this.cachedExecutor;
@@ -325,7 +331,7 @@ public class MethodReference extends SpelNodeImpl {
 			// Something on the stack when nothing is needed
 			mv.visitInsn(POP);
 		}
-		
+
 		if (CodeFlow.isPrimitive(descriptor)) {
 			CodeFlow.insertBoxIfNecessary(mv, descriptor.charAt(0));
 		}

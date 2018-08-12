@@ -27,12 +27,12 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Currency;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -318,7 +318,7 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 				// Check property-specific editor first.
 				PropertyEditor editor = getCustomEditor(propertyPath, requiredType);
 				if (editor == null) {
-					List<String> strippedPaths = new LinkedList<>();
+					List<String> strippedPaths = new ArrayList<>();
 					addStrippedPropertyPaths(strippedPaths, "", propertyPath);
 					for (Iterator<String> it = strippedPaths.iterator(); it.hasNext() && editor == null;) {
 						String strippedPath = it.next();
@@ -438,7 +438,7 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 		if (this.customEditorsForPath != null) {
 			CustomEditorHolder editorHolder = this.customEditorsForPath.get(propertyName);
 			if (editorHolder == null) {
-				List<String> strippedPaths = new LinkedList<>();
+				List<String> strippedPaths = new ArrayList<>();
 				addStrippedPropertyPaths(strippedPaths, "", propertyName);
 				for (Iterator<String> it = strippedPaths.iterator(); it.hasNext() && editorHolder == null;) {
 					String strippedName = it.next();
@@ -466,9 +466,7 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 			this.customEditors.forEach(target::registerCustomEditor);
 		}
 		if (this.customEditorsForPath != null) {
-			for (Map.Entry<String, CustomEditorHolder> entry : this.customEditorsForPath.entrySet()) {
-				String editorPath = entry.getKey();
-				CustomEditorHolder editorHolder = entry.getValue();
+			this.customEditorsForPath.forEach((editorPath, editorHolder) -> {
 				if (nestedProperty != null) {
 					int pos = PropertyAccessorUtils.getFirstNestedPropertySeparatorIndex(editorPath);
 					if (pos != -1) {
@@ -484,7 +482,7 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 					target.registerCustomEditor(
 							editorHolder.getRegisteredType(), editorPath, editorHolder.getPropertyEditor());
 				}
-			}
+			});
 		}
 	}
 
@@ -519,7 +517,7 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	 * Holder for a registered custom editor with property name.
 	 * Keeps the PropertyEditor itself plus the type it was registered for.
 	 */
-	private static class CustomEditorHolder {
+	private static final class CustomEditorHolder {
 
 		private final PropertyEditor propertyEditor;
 

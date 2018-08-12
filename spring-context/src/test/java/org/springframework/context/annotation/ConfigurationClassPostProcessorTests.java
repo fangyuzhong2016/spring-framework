@@ -22,6 +22,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.PostConstruct;
 
 import org.junit.Before;
@@ -37,6 +38,7 @@ import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor;
 import org.springframework.beans.factory.annotation.Lookup;
@@ -351,11 +353,24 @@ public class ConfigurationClassPostProcessorTests {
 		}
 	}
 
-	@Test
+	@Test  // SPR-15384
 	public void nestedConfigurationClassesProcessedInCorrectOrder() {
 		beanFactory.registerBeanDefinition("config", new RootBeanDefinition(ConfigWithOrderedNestedClasses.class));
 		ConfigurationClassPostProcessor pp = new ConfigurationClassPostProcessor();
 		pp.postProcessBeanFactory(beanFactory);
+
+		Foo foo = beanFactory.getBean(Foo.class);
+		assertTrue(foo instanceof ExtendedFoo);
+		Bar bar = beanFactory.getBean(Bar.class);
+		assertSame(foo, bar.foo);
+	}
+
+	@Test  // SPR-16734
+	public void innerConfigurationClassesProcessedInCorrectOrder() {
+		beanFactory.registerBeanDefinition("config", new RootBeanDefinition(ConfigWithOrderedInnerClasses.class));
+		ConfigurationClassPostProcessor pp = new ConfigurationClassPostProcessor();
+		pp.postProcessBeanFactory(beanFactory);
+		beanFactory.addBeanPostProcessor(new AutowiredAnnotationBeanPostProcessor());
 
 		Foo foo = beanFactory.getBean(Foo.class);
 		assertTrue(foo instanceof ExtendedFoo);
@@ -787,12 +802,72 @@ public class ConfigurationClassPostProcessorTests {
 	}
 
 	@Test
+	public void testVarargOnBeanMethod() {
+		ApplicationContext ctx = new AnnotationConfigApplicationContext(VarargConfiguration.class, TestBean.class);
+		VarargConfiguration bean = ctx.getBean(VarargConfiguration.class);
+		assertNotNull(bean.testBeans);
+		assertEquals(1, bean.testBeans.length);
+		assertSame(ctx.getBean(TestBean.class), bean.testBeans[0]);
+	}
+
+	@Test
+	public void testEmptyVarargOnBeanMethod() {
+		ApplicationContext ctx = new AnnotationConfigApplicationContext(VarargConfiguration.class);
+		VarargConfiguration bean = ctx.getBean(VarargConfiguration.class);
+		assertNotNull(bean.testBeans);
+		assertEquals(0, bean.testBeans.length);
+	}
+
+	@Test
+	public void testCollectionArgumentOnBeanMethod() {
+		ApplicationContext ctx = new AnnotationConfigApplicationContext(CollectionArgumentConfiguration.class, TestBean.class);
+		CollectionArgumentConfiguration bean = ctx.getBean(CollectionArgumentConfiguration.class);
+		assertNotNull(bean.testBeans);
+		assertEquals(1, bean.testBeans.size());
+		assertSame(ctx.getBean(TestBean.class), bean.testBeans.get(0));
+	}
+
+	@Test
+	public void testEmptyCollectionArgumentOnBeanMethod() {
+		ApplicationContext ctx = new AnnotationConfigApplicationContext(CollectionArgumentConfiguration.class);
+		CollectionArgumentConfiguration bean = ctx.getBean(CollectionArgumentConfiguration.class);
+		assertNotNull(bean.testBeans);
+		assertTrue(bean.testBeans.isEmpty());
+	}
+
+	@Test
+	public void testMapArgumentOnBeanMethod() {
+		ApplicationContext ctx = new AnnotationConfigApplicationContext(MapArgumentConfiguration.class, DummyRunnable.class);
+		MapArgumentConfiguration bean = ctx.getBean(MapArgumentConfiguration.class);
+		assertNotNull(bean.testBeans);
+		assertEquals(1, bean.testBeans.size());
+		assertSame(ctx.getBean(Runnable.class), bean.testBeans.values().iterator().next());
+	}
+
+	@Test
+	public void testEmptyMapArgumentOnBeanMethod() {
+		ApplicationContext ctx = new AnnotationConfigApplicationContext(MapArgumentConfiguration.class);
+		MapArgumentConfiguration bean = ctx.getBean(MapArgumentConfiguration.class);
+		assertNotNull(bean.testBeans);
+		assertTrue(bean.testBeans.isEmpty());
+	}
+
+	@Test
 	public void testCollectionInjectionFromSameConfigurationClass() {
 		ApplicationContext ctx = new AnnotationConfigApplicationContext(CollectionInjectionConfiguration.class);
 		CollectionInjectionConfiguration bean = ctx.getBean(CollectionInjectionConfiguration.class);
 		assertNotNull(bean.testBeans);
 		assertEquals(1, bean.testBeans.size());
 		assertSame(ctx.getBean(TestBean.class), bean.testBeans.get(0));
+	}
+
+	@Test
+	public void testMapInjectionFromSameConfigurationClass() {
+		ApplicationContext ctx = new AnnotationConfigApplicationContext(MapInjectionConfiguration.class);
+		MapInjectionConfiguration bean = ctx.getBean(MapInjectionConfiguration.class);
+		assertNotNull(bean.testBeans);
+		assertEquals(1, bean.testBeans.size());
+		assertSame(ctx.getBean(Runnable.class), bean.testBeans.get("testBean"));
 	}
 
 	@Test
@@ -879,6 +954,43 @@ public class ConfigurationClassPostProcessorTests {
 		@Configuration
 		@Order(2)
 		static class OverridingSingletonBeanConfig {
+
+			public @Bean ExtendedFoo foo() {
+				return new ExtendedFoo();
+			}
+
+			public @Bean Bar bar() {
+				return new Bar(foo());
+			}
+		}
+	}
+
+	@Configuration
+	static class ConfigWithOrderedInnerClasses {
+
+		@Configuration
+		@Order(1)
+		class SingletonBeanConfig {
+
+			public SingletonBeanConfig(ConfigWithOrderedInnerClasses other) {
+			}
+
+			public @Bean Foo foo() {
+				return new Foo();
+			}
+
+			public @Bean Bar bar() {
+				return new Bar(foo());
+			}
+		}
+
+		@Configuration
+		@Order(2)
+		class OverridingSingletonBeanConfig {
+
+			public OverridingSingletonBeanConfig(ObjectProvider<SingletonBeanConfig> other) {
+				other.getObject();
+			}
 
 			public @Bean ExtendedFoo foo() {
 				return new ExtendedFoo();
@@ -1503,6 +1615,55 @@ public class ConfigurationClassPostProcessorTests {
 		}
 	}
 
+	public static class DummyRunnable implements Runnable {
+
+		@Override
+		public void run() {
+			/* no-op */
+		}
+	}
+
+	@Configuration
+	static class VarargConfiguration {
+
+		TestBean[] testBeans;
+
+		@Bean(autowireCandidate = false)
+		public TestBean thing(TestBean... testBeans) {
+			this.testBeans = testBeans;
+			return new TestBean();
+		}
+	}
+
+	@Configuration
+	static class CollectionArgumentConfiguration {
+
+		List<TestBean> testBeans;
+
+		@Bean(autowireCandidate = false)
+		public TestBean thing(List<TestBean> testBeans) {
+			this.testBeans = testBeans;
+			return new TestBean();
+		}
+	}
+
+	@Configuration
+	public static class MapArgumentConfiguration {
+
+		Map<String, Runnable> testBeans;
+
+		@Bean(autowireCandidate = false)
+		Runnable testBean(Map<String, Runnable> testBeans) {
+			this.testBeans = testBeans;
+			return () -> {};
+		}
+
+		// Unrelated, not to be considered as a factory method
+		private boolean testBean(boolean param) {
+			return param;
+		}
+	}
+
 	@Configuration
 	static class CollectionInjectionConfiguration {
 
@@ -1512,6 +1673,23 @@ public class ConfigurationClassPostProcessorTests {
 		@Bean
 		public TestBean thing() {
 			return new TestBean();
+		}
+	}
+
+	@Configuration
+	public static class MapInjectionConfiguration {
+
+		@Autowired
+		private Map<String, Runnable> testBeans;
+
+		@Bean
+		Runnable testBean() {
+			return () -> {};
+		}
+
+		// Unrelated, not to be considered as a factory method
+		private boolean testBean(boolean param) {
+			return param;
 		}
 	}
 

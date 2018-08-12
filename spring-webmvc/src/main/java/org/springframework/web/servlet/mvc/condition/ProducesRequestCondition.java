@@ -52,7 +52,7 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	private static final ProducesRequestCondition EMPTY_CONDITION = new ProducesRequestCondition();
 
 	private static final List<ProduceMediaTypeExpression> MEDIA_TYPE_ALL_LIST =
-			Collections.singletonList(new ProduceMediaTypeExpression("*/*"));
+			Collections.singletonList(new ProduceMediaTypeExpression(MediaType.ALL_VALUE));
 
 
 	private final List<ProduceMediaTypeExpression> expressions;
@@ -259,8 +259,7 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	}
 
 	private List<MediaType> getAcceptedMediaTypes(HttpServletRequest request) throws HttpMediaTypeNotAcceptableException {
-		List<MediaType> mediaTypes = this.contentNegotiationManager.resolveMediaTypes(new ServletWebRequest(request));
-		return mediaTypes.isEmpty() ? Collections.singletonList(MediaType.ALL) : mediaTypes;
+		return this.contentNegotiationManager.resolveMediaTypes(new ServletWebRequest(request));
 	}
 
 	private int indexOfEqualMediaType(MediaType mediaType) {
@@ -301,7 +300,7 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 
 	/**
 	 * Return the contained "produces" expressions or if that's empty, a list
-	 * with a {@code MediaType_ALL} expression.
+	 * with a {@value MediaType#ALL_VALUE} expression.
 	 */
 	private List<ProduceMediaTypeExpression> getExpressionsToCompare() {
 		return (this.expressions.isEmpty() ? MEDIA_TYPE_ALL_LIST : this.expressions);

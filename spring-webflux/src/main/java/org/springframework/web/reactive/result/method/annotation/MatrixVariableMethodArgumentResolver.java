@@ -98,7 +98,8 @@ public class MatrixVariableMethodArgumentResolver extends AbstractNamedValueSync
 						String paramType = param.getNestedParameterType().getName();
 						throw new ServerErrorException(
 								"Found more than one match for URI path parameter '" + name +
-								"' for parameter type [" + paramType + "]. Use 'pathVar' attribute to disambiguate.");
+								"' for parameter type [" + paramType + "]. Use 'pathVar' attribute to disambiguate.",
+								param, null);
 					}
 					paramValues.addAll(params.get(name));
 					found = true;
@@ -124,7 +125,7 @@ public class MatrixVariableMethodArgumentResolver extends AbstractNamedValueSync
 	}
 
 
-	private static class MatrixVariableNamedValueInfo extends NamedValueInfo {
+	private static final class MatrixVariableNamedValueInfo extends NamedValueInfo {
 
 		private MatrixVariableNamedValueInfo(MatrixVariable annotation) {
 			super(annotation.name(), annotation.required(), annotation.defaultValue());

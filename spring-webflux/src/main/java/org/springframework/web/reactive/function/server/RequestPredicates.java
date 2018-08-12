@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,13 @@
 
 package org.springframework.web.reactive.function.server;
 
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,12 +41,15 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.codec.HttpMessageReader;
+import org.springframework.http.codec.multipart.Part;
 import org.springframework.http.server.PathContainer;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyExtractor;
+import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebSession;
 import org.springframework.web.util.UriBuilder;
 import org.springframework.web.util.UriUtils;
@@ -75,8 +80,9 @@ public abstract class RequestPredicates {
 
 
 	/**
-	 * Return a {@code RequestPredicate} that tests against the given HTTP method.
-	 * @param httpMethod the HTTP method to match to
+	 * Return a {@code RequestPredicate} that matches if the request's
+	 * HTTP method is equal to the given method.
+	 * @param httpMethod the HTTP method to match against
 	 * @return a predicate that tests against the given HTTP method
 	 */
 	public static RequestPredicate method(HttpMethod httpMethod) {
@@ -84,7 +90,19 @@ public abstract class RequestPredicates {
 	}
 
 	/**
-	 * Return a {@code RequestPredicate} that tests the request path against the given path pattern.
+	 * Return a {@code RequestPredicate} that matches if the request's
+	 * HTTP method is equal to one the of the given methods.
+	 * @param httpMethods the HTTP methods to match against
+	 * @return a predicate that tests against the given HTTP methods
+	 * @since 5.1
+	 */
+	public static RequestPredicate methods(HttpMethod... httpMethods) {
+		return new HttpMethodPredicate(httpMethods);
+	}
+
+	/**
+	 * Return a {@code RequestPredicate} that tests the request path
+	 * against the given path pattern.
 	 * @param pattern the pattern to match to
 	 * @return a predicate that tests against the given path pattern
 	 */
@@ -94,20 +112,22 @@ public abstract class RequestPredicates {
 	}
 
 	/**
-	 * Return a function that creates new path-matching {@code RequestPredicates} from pattern
-	 * Strings using the given {@link PathPatternParser}. This method can be used to specify a
-	 * non-default, customized {@code PathPatternParser} when resolving path patterns.
+	 * Return a function that creates new path-matching {@code RequestPredicates}
+	 * from pattern Strings using the given {@link PathPatternParser}.
+	 * <p>This method can be used to specify a non-default, customized
+	 * {@code PathPatternParser} when resolving path patterns.
 	 * @param patternParser the parser used to parse patterns given to the returned function
-	 * @return a function that resolves patterns Strings into path-matching
-	 * {@code RequestPredicate}s
+	 * @return a function that resolves a pattern String into a path-matching
+	 * {@code RequestPredicates} instance
 	 */
 	public static Function<String, RequestPredicate> pathPredicates(PathPatternParser patternParser) {
-		Assert.notNull(patternParser, "'patternParser' must not be null");
+		Assert.notNull(patternParser, "PathPatternParser must not be null");
 		return pattern -> new PathPatternPredicate(patternParser.parse(pattern));
 	}
 
 	/**
-	 * Return a {@code RequestPredicate} that tests the request's headers against the given headers predicate.
+	 * Return a {@code RequestPredicate} that tests the request's headers
+	 * against the given headers predicate.
 	 * @param headersPredicate a predicate that tests against the request headers
 	 * @return a predicate that tests against the given header predicate
 	 */
@@ -262,10 +282,17 @@ public abstract class RequestPredicates {
 	 */
 	public static RequestPredicate pathExtension(String extension) {
 		Assert.notNull(extension, "'extension' must not be null");
-		return pathExtension(pathExtension -> {
-			boolean match = extension.equalsIgnoreCase(pathExtension);
-			traceMatch("Extension", extension, pathExtension, match);
-			return match;
+		return pathExtension(new Predicate<String>() {
+			@Override
+			public boolean test(String pathExtension) {
+				boolean match = extension.equalsIgnoreCase(pathExtension);
+				traceMatch("Extension", extension, pathExtension, match);
+				return match;
+			}
+
+			public String toString() {
+				return String.format("*.%s", extension);
+			}
 		});
 	}
 
@@ -277,11 +304,29 @@ public abstract class RequestPredicates {
 	 * file extension
 	 */
 	public static RequestPredicate pathExtension(Predicate<String> extensionPredicate) {
-		Assert.notNull(extensionPredicate, "'extensionPredicate' must not be null");
-		return request -> {
-			String pathExtension = UriUtils.extractFileExtension(request.path());
-			return extensionPredicate.test(pathExtension);
-		};
+		return new PathExtensionPredicate(extensionPredicate);
+	}
+
+	/**
+	 * Return a {@code RequestPredicate} that matches if the request's query parameter of the given name
+	 * has the given value.
+	 * @param name the name of the query parameter to test against
+	 * @param value the value of the query parameter to test against
+	 * @return a predicate that matches if the query parameter has the given value
+	 * @since 5.0.7
+	 * @see ServerRequest#queryParam(String)
+	 */
+	public static RequestPredicate queryParam(String name, String value) {
+		return queryParam(name, new Predicate<String>() {
+			@Override
+			public boolean test(String s) {
+				return s.equals(value);
+			}
+			@Override
+			public String toString() {
+				return String.format("== %s", value);
+			}
+		});
 	}
 
 	/**
@@ -293,41 +338,48 @@ public abstract class RequestPredicates {
 	 * @see ServerRequest#queryParam(String)
 	 */
 	public static RequestPredicate queryParam(String name, Predicate<String> predicate) {
-		return request -> {
-			Optional<String> s = request.queryParam(name);
-			return s.filter(predicate).isPresent();
-		};
+		return new QueryParamPredicate(name, predicate);
 	}
 
 
 	private static void traceMatch(String prefix, Object desired, @Nullable Object actual, boolean match) {
 		if (logger.isTraceEnabled()) {
-			String message = String.format("%s \"%s\" %s against value \"%s\"",
-					prefix, desired, match ? "matches" : "does not match", actual);
-			logger.trace(message);
+			logger.trace(String.format("%s \"%s\" %s against value \"%s\"",
+					prefix, desired, match ? "matches" : "does not match", actual));
 		}
 	}
 
 
 	private static class HttpMethodPredicate implements RequestPredicate {
 
-		private final HttpMethod httpMethod;
+		private final Set<HttpMethod> httpMethods;
 
 		public HttpMethodPredicate(HttpMethod httpMethod) {
-			Assert.notNull(httpMethod, "'httpMethod' must not be null");
-			this.httpMethod = httpMethod;
+			Assert.notNull(httpMethod, "HttpMethod must not be null");
+			this.httpMethods = EnumSet.of(httpMethod);
+		}
+
+		public HttpMethodPredicate(HttpMethod... httpMethods) {
+			Assert.notEmpty(httpMethods, "HttpMethods must not be empty");
+
+			this.httpMethods = EnumSet.copyOf(Arrays.asList(httpMethods));
 		}
 
 		@Override
 		public boolean test(ServerRequest request) {
-			boolean match = this.httpMethod == request.method();
-			traceMatch("Method", this.httpMethod, request.method(), match);
+			boolean match = this.httpMethods.contains(request.method());
+			traceMatch("Method", this.httpMethods, request.method(), match);
 			return match;
 		}
 
 		@Override
 		public String toString() {
-			return this.httpMethod.toString();
+			if (this.httpMethods.size() == 1) {
+				return this.httpMethods.iterator().next().toString();
+			}
+			else {
+				return this.httpMethods.toString();
+			}
 		}
 	}
 
@@ -358,10 +410,7 @@ public abstract class RequestPredicates {
 		@Override
 		public Optional<ServerRequest> nest(ServerRequest request) {
 			return Optional.ofNullable(this.pattern.matchStartOfPath(request.pathContainer()))
-					.map(info -> {
-						mergeTemplateVariables(request, info.getUriVariables());
-						return new SubPathServerRequestWrapper(request, info);
-					});
+					.map(info -> new SubPathServerRequestWrapper(request, info));
 		}
 
 		private void mergeTemplateVariables(ServerRequest request, Map<String, String> variables) {
@@ -386,7 +435,7 @@ public abstract class RequestPredicates {
 		private final Predicate<ServerRequest.Headers> headersPredicate;
 
 		public HeadersPredicate(Predicate<ServerRequest.Headers> headersPredicate) {
-			Assert.notNull(headersPredicate, "'headersPredicate' must not be null");
+			Assert.notNull(headersPredicate, "Predicate must not be null");
 			this.headersPredicate = headersPredicate;
 		}
 
@@ -401,6 +450,60 @@ public abstract class RequestPredicates {
 		}
 	}
 
+
+	private static class PathExtensionPredicate implements RequestPredicate {
+
+		private final Predicate<String> extensionPredicate;
+
+		public PathExtensionPredicate(Predicate<String> extensionPredicate) {
+			Assert.notNull(extensionPredicate, "Predicate must not be null");
+			this.extensionPredicate = extensionPredicate;
+		}
+
+		@Override
+		public boolean test(ServerRequest request) {
+			String pathExtension = UriUtils.extractFileExtension(request.path());
+			return this.extensionPredicate.test(pathExtension);
+		}
+
+		@Override
+		public String toString() {
+			return this.extensionPredicate.toString();
+		}
+
+	}
+
+
+	private static class QueryParamPredicate implements RequestPredicate {
+
+		private final String name;
+
+		private final Predicate<String> predicate;
+
+		public QueryParamPredicate(String name, Predicate<String> predicate) {
+			Assert.notNull(name, "Name must not be null");
+			Assert.notNull(predicate, "Predicate must not be null");
+			this.name = name;
+			this.predicate = predicate;
+		}
+
+		@Override
+		public boolean test(ServerRequest request) {
+			Optional<String> s = request.queryParam(this.name);
+			return s.filter(this.predicate).isPresent();
+		}
+
+		@Override
+		public String toString() {
+			return String.format("?%s %s", this.name, this.predicate);
+		}
+	}
+
+
+	/**
+	 * {@link RequestPredicate} for where both {@code left} and {@code right} predicates
+	 * must match.
+	 */
 	static class AndRequestPredicate implements RequestPredicate {
 
 		private final RequestPredicate left;
@@ -408,13 +511,15 @@ public abstract class RequestPredicates {
 		private final RequestPredicate right;
 
 		public AndRequestPredicate(RequestPredicate left, RequestPredicate right) {
+			Assert.notNull(left, "Left RequestPredicate must not be null");
+			Assert.notNull(right, "Right RequestPredicate must not be null");
 			this.left = left;
 			this.right = right;
 		}
 
 		@Override
 		public boolean test(ServerRequest t) {
-			return this.left.test(t) && this.right.test(t);
+			return (this.left.test(t) && this.right.test(t));
 		}
 
 		@Override
@@ -428,6 +533,11 @@ public abstract class RequestPredicates {
 		}
 	}
 
+
+	/**
+	 * {@link RequestPredicate} for where either {@code left} or {@code right} predicates
+	 * may match.
+	 */
 	static class OrRequestPredicate implements RequestPredicate {
 
 		private final RequestPredicate left;
@@ -435,12 +545,15 @@ public abstract class RequestPredicates {
 		private final RequestPredicate right;
 
 		public OrRequestPredicate(RequestPredicate left, RequestPredicate right) {
+			Assert.notNull(left, "Left RequestPredicate must not be null");
+			Assert.notNull(right, "Right RequestPredicate must not be null");
 			this.left = left;
 			this.right = right;
 		}
+
 		@Override
 		public boolean test(ServerRequest t) {
-			return this.left.test(t) || this.right.test(t);
+			return (this.left.test(t) || this.right.test(t));
 		}
 
 		@Override
@@ -460,16 +573,28 @@ public abstract class RequestPredicates {
 		}
 	}
 
+
 	private static class SubPathServerRequestWrapper implements ServerRequest {
 
 		private final ServerRequest request;
 
 		private final PathContainer subPathContainer;
 
+		private final Map<String, String> pathVariables;
 
 		public SubPathServerRequestWrapper(ServerRequest request, PathPattern.PathRemainingMatchInfo info) {
 			this.request = request;
 			this.subPathContainer = new SubPathContainer(info.getPathRemaining());
+
+			this.pathVariables = mergePathVariables(request, info.getUriVariables());
+		}
+
+		private static Map<String, String> mergePathVariables(ServerRequest request,
+				Map<String, String> pathVariables) {
+
+			Map<String, String> result = new LinkedHashMap<>(request.pathVariables());
+			result.putAll(pathVariables);
+			return Collections.unmodifiableMap(result);
 		}
 
 		@Override
@@ -510,6 +635,16 @@ public abstract class RequestPredicates {
 		@Override
 		public MultiValueMap<String, HttpCookie> cookies() {
 			return this.request.cookies();
+		}
+
+		@Override
+		public Optional<InetSocketAddress> remoteAddress() {
+			return this.request.remoteAddress();
+		}
+
+		@Override
+		public List<HttpMessageReader<?>> messageReaders() {
+			return this.request.messageReaders();
 		}
 
 		@Override
@@ -563,13 +698,8 @@ public abstract class RequestPredicates {
 		}
 
 		@Override
-		public String pathVariable(String name) {
-			return this.request.pathVariable(name);
-		}
-
-		@Override
 		public Map<String, String> pathVariables() {
-			return this.request.pathVariables();
+			return this.pathVariables;
 		}
 
 		@Override
@@ -580,6 +710,21 @@ public abstract class RequestPredicates {
 		@Override
 		public Mono<? extends Principal> principal() {
 			return this.request.principal();
+		}
+
+		@Override
+		public Mono<MultiValueMap<String, String>> formData() {
+			return this.request.formData();
+		}
+
+		@Override
+		public Mono<MultiValueMap<String, Part>> multipartData() {
+			return this.request.multipartData();
+		}
+
+		@Override
+		public ServerWebExchange exchange() {
+			return this.request.exchange();
 		}
 
 		@Override

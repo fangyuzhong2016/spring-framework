@@ -17,6 +17,7 @@
 package org.springframework.http.server.reactive;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletRequest;
@@ -49,26 +50,28 @@ public class TomcatHttpHandlerAdapter extends ServletHttpHandlerAdapter {
 
 
 	@Override
-	protected ServerHttpRequest createRequest(HttpServletRequest request, AsyncContext asyncContext)
-			throws IOException {
+	protected ServletServerHttpRequest createRequest(HttpServletRequest request, AsyncContext asyncContext)
+			throws IOException, URISyntaxException {
 
 		Assert.notNull(getServletPath(), "servletPath is not initialized.");
-		return new TomcatServerHttpRequest(request, asyncContext, getServletPath(),
-				getDataBufferFactory(), getBufferSize());
+		return new TomcatServerHttpRequest(
+				request, asyncContext, getServletPath(), getDataBufferFactory(), getBufferSize());
 	}
 
 	@Override
-	protected ServerHttpResponse createResponse(HttpServletResponse response, AsyncContext cxt)
-			throws IOException {
+	protected ServletServerHttpResponse createResponse(HttpServletResponse response,
+			AsyncContext asyncContext, ServletServerHttpRequest request) throws IOException {
 
-		return new TomcatServerHttpResponse(response, cxt, getDataBufferFactory(), getBufferSize());
+		return new TomcatServerHttpResponse(
+				response, asyncContext, getDataBufferFactory(), getBufferSize(), request);
 	}
 
 
 	private final class TomcatServerHttpRequest extends ServletServerHttpRequest {
 
 		public TomcatServerHttpRequest(HttpServletRequest request, AsyncContext context,
-				String servletPath, DataBufferFactory factory, int bufferSize) throws IOException {
+				String servletPath, DataBufferFactory factory, int bufferSize)
+				throws IOException, URISyntaxException {
 
 			super(request, context, servletPath, factory, bufferSize);
 		}
@@ -83,9 +86,7 @@ public class TomcatHttpHandlerAdapter extends ServletHttpHandlerAdapter {
 
 				ServletRequest request = getNativeRequest();
 				int read = ((CoyoteInputStream) request.getInputStream()).read(byteBuffer);
-				if (logger.isTraceEnabled()) {
-					logger.trace("read:" + read);
-				}
+				logBytesRead(read);
 
 				if (read > 0) {
 					dataBuffer.writePosition(read);
@@ -111,9 +112,9 @@ public class TomcatHttpHandlerAdapter extends ServletHttpHandlerAdapter {
 	private static final class TomcatServerHttpResponse extends ServletServerHttpResponse {
 
 		public TomcatServerHttpResponse(HttpServletResponse response, AsyncContext context,
-				DataBufferFactory factory, int bufferSize) throws IOException {
+				DataBufferFactory factory, int bufferSize, ServletServerHttpRequest request) throws IOException {
 
-			super(response, context, factory, bufferSize);
+			super(response, context, factory, bufferSize, request);
 		}
 
 		@Override

@@ -35,9 +35,9 @@ import org.springframework.jdbc.support.MetaDataAccessException;
  * @author Juergen Hoeller
  * @since 2.5
  */
-public class CallMetaDataProviderFactory {
+public final class CallMetaDataProviderFactory {
 
-	/** List of supported database products for procedure calls */
+	/** List of supported database products for procedure calls. */
 	public static final List<String> supportedDatabaseProductsForProcedures = Arrays.asList(
 			"Apache Derby",
 			"DB2",
@@ -48,7 +48,7 @@ public class CallMetaDataProviderFactory {
 			"Sybase"
 		);
 
-	/** List of supported database products for function calls */
+	/** List of supported database products for function calls. */
 	public static final List<String> supportedDatabaseProductsForFunctions = Arrays.asList(
 			"MySQL",
 			"Microsoft SQL Server",
@@ -59,9 +59,13 @@ public class CallMetaDataProviderFactory {
 	private static final Log logger = LogFactory.getLog(CallMetaDataProviderFactory.class);
 
 
+	private CallMetaDataProviderFactory() {
+	}
+
+
 	/**
-	 * Create a {@link CallMetaDataProvider} based on the database meta-data
-	 * @param dataSource used to retrieve meta-data
+	 * Create a {@link CallMetaDataProvider} based on the database meta-data.
+	 * @param dataSource the JDBC DataSource to use for retrieving meta-data
 	 * @param context the class that holds configuration and meta-data
 	 * @return instance of the CallMetaDataProvider implementation to be used
 	 */
@@ -72,24 +76,24 @@ public class CallMetaDataProviderFactory {
 				boolean accessProcedureColumnMetaData = context.isAccessCallParameterMetaData();
 				if (context.isFunction()) {
 					if (!supportedDatabaseProductsForFunctions.contains(databaseProductName)) {
-						if (logger.isWarnEnabled()) {
-							logger.warn(databaseProductName + " is not one of the databases fully supported for function calls " +
+						if (logger.isInfoEnabled()) {
+							logger.info(databaseProductName + " is not one of the databases fully supported for function calls " +
 									"-- supported are: " + supportedDatabaseProductsForFunctions);
 						}
 						if (accessProcedureColumnMetaData) {
-							logger.warn("Metadata processing disabled - you must specify all parameters explicitly");
+							logger.info("Metadata processing disabled - you must specify all parameters explicitly");
 							accessProcedureColumnMetaData = false;
 						}
 					}
 				}
 				else {
 					if (!supportedDatabaseProductsForProcedures.contains(databaseProductName)) {
-						if (logger.isWarnEnabled()) {
-							logger.warn(databaseProductName + " is not one of the databases fully supported for procedure calls " +
+						if (logger.isInfoEnabled()) {
+							logger.info(databaseProductName + " is not one of the databases fully supported for procedure calls " +
 									"-- supported are: " + supportedDatabaseProductsForProcedures);
 						}
 						if (accessProcedureColumnMetaData) {
-							logger.warn("Metadata processing disabled - you must specify all parameters explicitly");
+							logger.info("Metadata processing disabled - you must specify all parameters explicitly");
 							accessProcedureColumnMetaData = false;
 						}
 					}

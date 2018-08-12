@@ -36,9 +36,9 @@ import org.springframework.util.StringUtils;
  * @author Rossen Stoyanchev
  * @since 5.0
  */
-class DefaultPathContainer implements PathContainer {
+final class DefaultPathContainer implements PathContainer {
 
-	private static final MultiValueMap<String, String> EMPTY_MAP = new LinkedMultiValueMap<>(0);
+	private static final MultiValueMap<String, String> EMPTY_MAP = new LinkedMultiValueMap<>();
 
 	private static final PathContainer EMPTY_PATH = new DefaultPathContainer("", Collections.emptyList());
 
@@ -85,7 +85,7 @@ class DefaultPathContainer implements PathContainer {
 
 	@Override
 	public String toString() {
-		return "[path='" + this.path + "\']";
+		return value();
 	}
 
 
@@ -180,9 +180,9 @@ class DefaultPathContainer implements PathContainer {
 			return EMPTY_PATH;
 		}
 
-		Assert.isTrue(fromIndex < toIndex, () -> "fromIndex: " + fromIndex + " should be < toIndex " + toIndex);
 		Assert.isTrue(fromIndex >= 0 && fromIndex < elements.size(), () -> "Invalid fromIndex: " + fromIndex);
 		Assert.isTrue(toIndex >= 0 && toIndex <= elements.size(), () -> "Invalid toIndex: " + toIndex);
+		Assert.isTrue(fromIndex < toIndex, () -> "fromIndex: " + fromIndex + " should be < toIndex " + toIndex);
 
 		List<Element> subList = elements.subList(fromIndex, toIndex);
 		String path = subList.stream().map(Element::value).collect(Collectors.joining(""));

@@ -21,6 +21,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.function.IntPredicate;
 import javax.net.ssl.SSLSession;
@@ -43,6 +44,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -59,19 +61,21 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 	private final RequestBodyPublisher body;
 
 
-	public UndertowServerHttpRequest(HttpServerExchange exchange, DataBufferFactory bufferFactory) {
+	public UndertowServerHttpRequest(HttpServerExchange exchange, DataBufferFactory bufferFactory)
+			throws URISyntaxException {
+
 		super(initUri(exchange), "", initHeaders(exchange));
 		this.exchange = exchange;
 		this.body = new RequestBodyPublisher(exchange, bufferFactory);
 		this.body.registerListeners(exchange);
 	}
 
-	private static URI initUri(HttpServerExchange exchange) {
+	private static URI initUri(HttpServerExchange exchange) throws URISyntaxException {
 		Assert.notNull(exchange, "HttpServerExchange is required.");
 		String requestURL = exchange.getRequestURL();
 		String query = exchange.getQueryString();
 		String requestUriAndQuery = StringUtils.isEmpty(query) ? requestURL : requestURL + "?" + query;
-		return URI.create(requestUriAndQuery);
+		return new URI(requestUriAndQuery);
 	}
 
 	private static HttpHeaders initHeaders(HttpServerExchange exchange) {
@@ -124,8 +128,13 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 		return (T) this.exchange;
 	}
 
+	@Override
+	protected String initId() {
+		return ObjectUtils.getIdentityHexString(this.exchange.getConnection());
+	}
 
-	private static class RequestBodyPublisher extends AbstractListenerReadPublisher<DataBuffer> {
+
+	private class RequestBodyPublisher extends AbstractListenerReadPublisher<DataBuffer> {
 
 		private final StreamSourceChannel channel;
 
@@ -133,7 +142,9 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 
 		private final ByteBufferPool byteBufferPool;
 
+
 		public RequestBodyPublisher(HttpServerExchange exchange, DataBufferFactory bufferFactory) {
+			super(UndertowServerHttpRequest.this.getLogPrefix());
 			this.channel = exchange.getRequestChannel();
 			this.bufferFactory = bufferFactory;
 			this.byteBufferPool = exchange.getConnection().getByteBufferPool();
@@ -168,10 +179,10 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 			boolean release = true;
 			try {
 				ByteBuffer byteBuffer = pooledByteBuffer.getBuffer();
-
 				int read = this.channel.read(byteBuffer);
-				if (logger.isTraceEnabled()) {
-					logger.trace("Channel read returned " + read + (read != -1 ? " bytes" : ""));
+
+				if (rsReadLogger.isTraceEnabled()) {
+					rsReadLogger.trace(getLogPrefix() + "Read " + read + (read != -1 ? " bytes" : ""));
 				}
 
 				if (read > 0) {
@@ -184,7 +195,8 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 					onAllDataRead();
 				}
 				return null;
-			} finally {
+			}
+			finally {
 				if (release && pooledByteBuffer.isOpen()) {
 					pooledByteBuffer.close();
 				}

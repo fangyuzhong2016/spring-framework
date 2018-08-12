@@ -33,7 +33,6 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import reactor.core.publisher.Flux;
 
 import org.springframework.core.io.buffer.DataBuffer;
@@ -57,14 +56,7 @@ import org.springframework.util.StringUtils;
  */
 class ServletServerHttpRequest extends AbstractServerHttpRequest {
 
-	private static final String X509_CERTIFICATE_ATTRIBUTE = "javax.servlet.request.X509Certificate";
-
-	private static final String SSL_SESSION_ID_ATTRIBUTE = "javax.servlet.request.ssl_session_id";
-
 	static final DataBuffer EOF_BUFFER = new DefaultDataBufferFactory().allocateBuffer(0);
-
-
-	protected final Log logger = LogFactory.getLog(getClass());
 
 
 	private final HttpServletRequest request;
@@ -79,7 +71,8 @@ class ServletServerHttpRequest extends AbstractServerHttpRequest {
 
 
 	public ServletServerHttpRequest(HttpServletRequest request, AsyncContext asyncContext,
-			String servletPath, DataBufferFactory bufferFactory, int bufferSize) throws IOException {
+			String servletPath, DataBufferFactory bufferFactory, int bufferSize)
+			throws IOException, URISyntaxException {
 
 		super(initUri(request), request.getContextPath() + servletPath, initHeaders(request));
 
@@ -98,28 +91,23 @@ class ServletServerHttpRequest extends AbstractServerHttpRequest {
 		this.bodyPublisher.registerReadListener();
 	}
 
-	private static URI initUri(HttpServletRequest request) {
+	private static URI initUri(HttpServletRequest request) throws URISyntaxException {
 		Assert.notNull(request, "'request' must not be null");
-		try {
-			StringBuffer url = request.getRequestURL();
-			String query = request.getQueryString();
-			if (StringUtils.hasText(query)) {
-				url.append('?').append(query);
-			}
-			return new URI(url.toString());
+		StringBuffer url = request.getRequestURL();
+		String query = request.getQueryString();
+		if (StringUtils.hasText(query)) {
+			url.append('?').append(query);
 		}
-		catch (URISyntaxException ex) {
-			throw new IllegalStateException("Could not get URI: " + ex.getMessage(), ex);
-		}
+		return new URI(url.toString());
 	}
 
 	private static HttpHeaders initHeaders(HttpServletRequest request) {
 		HttpHeaders headers = new HttpHeaders();
 		for (Enumeration<?> names = request.getHeaderNames();
-			 names.hasMoreElements(); ) {
+			names.hasMoreElements(); ) {
 			String name = (String) names.nextElement();
 			for (Enumeration<?> values = request.getHeaders(name);
-				 values.hasMoreElements(); ) {
+				values.hasMoreElements(); ) {
 				headers.add(name, (String) values.nextElement());
 			}
 		}
@@ -182,12 +170,19 @@ class ServletServerHttpRequest extends AbstractServerHttpRequest {
 
 	@Nullable
 	protected SslInfo initSslInfo() {
-		if (!this.request.isSecure()) {
-			return null;
-		}
-		return new DefaultSslInfo(
-				(String) request.getAttribute(SSL_SESSION_ID_ATTRIBUTE),
-				(X509Certificate[]) request.getAttribute(X509_CERTIFICATE_ATTRIBUTE));
+		X509Certificate[] certificates = getX509Certificates();
+		return certificates != null ? new DefaultSslInfo(getSslSessionId(), certificates) : null;
+	}
+
+	@Nullable
+	private String getSslSessionId() {
+		return (String) this.request.getAttribute("javax.servlet.request.ssl_session_id");
+	}
+
+	@Nullable
+	private X509Certificate[] getX509Certificates() {
+		String name = "javax.servlet.request.X509Certificate";
+		return (X509Certificate[]) this.request.getAttribute(name);
 	}
 
 	@Override
@@ -198,24 +193,32 @@ class ServletServerHttpRequest extends AbstractServerHttpRequest {
 	/**
 	 * Read from the request body InputStream and return a DataBuffer.
 	 * Invoked only when {@link ServletInputStream#isReady()} returns "true".
+	 * @return a DataBuffer with data read, or {@link #EOF_BUFFER} if the input
+	 * stream returned -1, or null if 0 bytes were read.
 	 */
 	@Nullable
 	DataBuffer readFromInputStream() throws IOException {
 		int read = this.request.getInputStream().read(this.buffer);
-		if (logger.isTraceEnabled()) {
-			logger.trace("InputStream read returned " + read + (read != -1 ? " bytes" : ""));
-		}
+		logBytesRead(read);
 
 		if (read > 0) {
 			DataBuffer dataBuffer = this.bufferFactory.allocateBuffer(read);
 			dataBuffer.write(this.buffer, 0, read);
 			return dataBuffer;
 		}
-		else if (read == -1) {
+
+		if (read == -1) {
 			return EOF_BUFFER;
 		}
 
 		return null;
+	}
+
+	protected final void logBytesRead(int read) {
+		Log rsReadLogger = AbstractListenerReadPublisher.rsReadLogger;
+		if (rsReadLogger.isTraceEnabled()) {
+			rsReadLogger.trace(getLogPrefix() + "Read " + read + (read != -1 ? " bytes" : ""));
+		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -254,6 +257,7 @@ class ServletServerHttpRequest extends AbstractServerHttpRequest {
 		private final ServletInputStream inputStream;
 
 		public RequestBodyPublisher(ServletInputStream inputStream) {
+			super(ServletServerHttpRequest.this.getLogPrefix());
 			this.inputStream = inputStream;
 		}
 
@@ -273,13 +277,12 @@ class ServletServerHttpRequest extends AbstractServerHttpRequest {
 		protected DataBuffer read() throws IOException {
 			if (this.inputStream.isReady()) {
 				DataBuffer dataBuffer = readFromInputStream();
-				if (dataBuffer != EOF_BUFFER) {
-					return dataBuffer;
-				}
-				else {
+				if (dataBuffer == EOF_BUFFER) {
 					// No need to wait for container callback...
 					onAllDataRead();
+					dataBuffer = null;
 				}
+				return dataBuffer;
 			}
 			return null;
 		}

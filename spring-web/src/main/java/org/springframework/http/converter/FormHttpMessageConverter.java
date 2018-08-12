@@ -25,8 +25,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.mail.internet.MimeUtility;
@@ -94,7 +93,13 @@ import org.springframework.util.StringUtils;
  */
 public class FormHttpMessageConverter implements HttpMessageConverter<MultiValueMap<String, ?>> {
 
+	/**
+	 * The default charset used by the converter.
+	 */
 	public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
+
+	private static final MediaType DEFAULT_FORM_DATA_MEDIA_TYPE =
+			new MediaType(MediaType.APPLICATION_FORM_URLENCODED, DEFAULT_CHARSET);
 
 
 	private List<MediaType> supportedMediaTypes = new ArrayList<>();
@@ -287,37 +292,16 @@ public class FormHttpMessageConverter implements HttpMessageConverter<MultiValue
 		return false;
 	}
 
-	private void writeForm(MultiValueMap<String, String> form, @Nullable MediaType contentType,
+	private void writeForm(MultiValueMap<String, String> formData, @Nullable MediaType contentType,
 			HttpOutputMessage outputMessage) throws IOException {
 
-		Charset charset;
-		if (contentType != null) {
-			outputMessage.getHeaders().setContentType(contentType);
-			charset = (contentType.getCharset() != null ? contentType.getCharset() : this.charset);
-		}
-		else {
-			outputMessage.getHeaders().setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-			charset = this.charset;
-		}
-		StringBuilder builder = new StringBuilder();
-		for (Iterator<String> nameIterator = form.keySet().iterator(); nameIterator.hasNext();) {
-			String name = nameIterator.next();
-			for (Iterator<String> valueIterator = form.get(name).iterator(); valueIterator.hasNext();) {
-				String value = valueIterator.next();
-				builder.append(URLEncoder.encode(name, charset.name()));
-				if (value != null) {
-					builder.append('=');
-					builder.append(URLEncoder.encode(value, charset.name()));
-					if (valueIterator.hasNext()) {
-						builder.append('&');
-					}
-				}
-			}
-			if (nameIterator.hasNext()) {
-				builder.append('&');
-			}
-		}
-		final byte[] bytes = builder.toString().getBytes(charset);
+		contentType = getMediaType(contentType);
+		outputMessage.getHeaders().setContentType(contentType);
+
+		Charset charset = contentType.getCharset();
+		Assert.notNull(charset, "No charset"); // should never occur
+
+		final byte[] bytes = serializeForm(formData, charset).getBytes(charset);
 		outputMessage.getHeaders().setContentLength(bytes.length);
 
 		if (outputMessage instanceof StreamingHttpOutputMessage) {
@@ -329,15 +313,49 @@ public class FormHttpMessageConverter implements HttpMessageConverter<MultiValue
 		}
 	}
 
+	private MediaType getMediaType(@Nullable MediaType mediaType) {
+		if (mediaType == null) {
+			return DEFAULT_FORM_DATA_MEDIA_TYPE;
+		}
+		else if (mediaType.getCharset() == null) {
+			return new MediaType(mediaType, this.charset);
+		}
+		else {
+			return mediaType;
+		}
+	}
+
+	protected String serializeForm(MultiValueMap<String, String> formData, Charset charset) {
+		StringBuilder builder = new StringBuilder();
+		formData.forEach((name, values) ->
+				values.forEach(value -> {
+					try {
+						if (builder.length() != 0) {
+							builder.append('&');
+						}
+						builder.append(URLEncoder.encode(name, charset.name()));
+						if (value != null) {
+							builder.append('=');
+							builder.append(URLEncoder.encode(value, charset.name()));
+						}
+					}
+					catch (UnsupportedEncodingException ex) {
+						throw new IllegalStateException(ex);
+					}
+				}));
+
+		return builder.toString();
+	}
+
 	private void writeMultipart(final MultiValueMap<String, Object> parts,
 			HttpOutputMessage outputMessage) throws IOException {
 
 		final byte[] boundary = generateMultipartBoundary();
-		Map<String, String> parameters = new HashMap<>(2);
-		parameters.put("boundary", new String(boundary, "US-ASCII"));
+		Map<String, String> parameters = new LinkedHashMap<>(2);
 		if (!isFilenameCharsetSet()) {
 			parameters.put("charset", this.charset.name());
 		}
+		parameters.put("boundary", new String(boundary, "US-ASCII"));
 
 		MediaType contentType = new MediaType(MediaType.MULTIPART_FORM_DATA, parameters);
 		HttpHeaders headers = outputMessage.getHeaders();

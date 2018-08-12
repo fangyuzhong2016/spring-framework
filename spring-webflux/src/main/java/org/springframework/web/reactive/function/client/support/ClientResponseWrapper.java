@@ -55,7 +55,7 @@ public class ClientResponseWrapper implements ClientResponse {
 	 * @param delegate the response to wrap
 	 */
 	public ClientResponseWrapper(ClientResponse delegate) {
-		Assert.notNull(delegate, "'delegate' must not be null");
+		Assert.notNull(delegate, "Delegate is required");
 		this.delegate = delegate;
 	}
 
@@ -75,6 +75,11 @@ public class ClientResponseWrapper implements ClientResponse {
 	@Override
 	public HttpStatus statusCode() {
 		return this.delegate.statusCode();
+	}
+
+	@Override
+	public int rawStatusCode() {
+		return this.delegate.rawStatusCode();
 	}
 
 	@Override

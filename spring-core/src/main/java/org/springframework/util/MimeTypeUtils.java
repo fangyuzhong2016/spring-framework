@@ -18,6 +18,7 @@ package org.springframework.util;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+import org.springframework.lang.Nullable;
 import org.springframework.util.MimeType.SpecificityComparator;
 
 /**
@@ -44,8 +46,6 @@ public abstract class MimeTypeUtils {
 					'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A',
 					'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
 					'V', 'W', 'X', 'Y', 'Z'};
-
-	private static final Random RND = new Random();
 
 	/**
 	 * Comparator used by {@link #sortBySpecificity(List)}.
@@ -152,6 +152,9 @@ public abstract class MimeTypeUtils {
 	 */
 	public static final String TEXT_XML_VALUE = "text/xml";
 
+	@Nullable
+	private static volatile Random random;
+
 
 	static {
 		ALL = MimeType.valueOf(ALL_VALUE);
@@ -224,8 +227,8 @@ public abstract class MimeTypeUtils {
 				}
 				int eqIndex = parameter.indexOf('=');
 				if (eqIndex >= 0) {
-					String attribute = parameter.substring(0, eqIndex);
-					String value = parameter.substring(eqIndex + 1, parameter.length());
+					String attribute = parameter.substring(0, eqIndex).trim();
+					String value = parameter.substring(eqIndex + 1, parameter.length()).trim();
 					parameters.put(attribute, value);
 				}
 			}
@@ -312,13 +315,32 @@ public abstract class MimeTypeUtils {
 		}
 	}
 
+
+	/**
+	 * Lazily initialize the {@link SecureRandom} for {@link #generateMultipartBoundary()}.
+	 */
+	private static Random initRandom() {
+		Random randomToUse = random;
+		if (randomToUse == null) {
+			synchronized (MimeTypeUtils.class) {
+				randomToUse = random;
+				if (randomToUse == null) {
+					randomToUse = new SecureRandom();
+					random = randomToUse;
+				}
+			}
+		}
+		return randomToUse;
+	}
+
 	/**
 	 * Generate a random MIME boundary as bytes, often used in multipart mime types.
 	 */
 	public static byte[] generateMultipartBoundary() {
-		byte[] boundary = new byte[RND.nextInt(11) + 30];
+		Random randomToUse = initRandom();
+		byte[] boundary = new byte[randomToUse.nextInt(11) + 30];
 		for (int i = 0; i < boundary.length; i++) {
-			boundary[i] = BOUNDARY_CHARS[RND.nextInt(BOUNDARY_CHARS.length)];
+			boundary[i] = BOUNDARY_CHARS[randomToUse.nextInt(BOUNDARY_CHARS.length)];
 		}
 		return boundary;
 	}

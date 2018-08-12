@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,19 +88,19 @@ public class DefaultResponseErrorHandler implements ResponseErrorHandler {
 	 * @since 5.0
 	 */
 	protected void handleError(ClientHttpResponse response, HttpStatus statusCode) throws IOException {
+		String statusText = response.getStatusText();
+		HttpHeaders headers = response.getHeaders();
+		byte[] body = getResponseBody(response);
+		Charset charset = getCharset(response);
 		switch (statusCode.series()) {
 			case CLIENT_ERROR:
-				throw new HttpClientErrorException(statusCode, response.getStatusText(),
-						response.getHeaders(), getResponseBody(response), getCharset(response));
+				throw HttpClientErrorException.create(statusCode, statusText, headers, body, charset);
 			case SERVER_ERROR:
-				throw new HttpServerErrorException(statusCode, response.getStatusText(),
-						response.getHeaders(), getResponseBody(response), getCharset(response));
+				throw HttpServerErrorException.create(statusCode, statusText, headers, body, charset);
 			default:
-				throw new UnknownHttpStatusCodeException(statusCode.value(), response.getStatusText(),
-						response.getHeaders(), getResponseBody(response), getCharset(response));
+				throw new UnknownHttpStatusCodeException(statusCode.value(), statusText, headers, body, charset);
 		}
 	}
-
 
 	/**
 	 * Determine the HTTP status of the given response.
