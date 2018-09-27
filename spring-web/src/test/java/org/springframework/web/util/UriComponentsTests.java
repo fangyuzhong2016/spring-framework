@@ -24,12 +24,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.junit.Test;
-
-import org.springframework.web.util.UriComponents.UriTemplateVariables;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
@@ -76,6 +72,12 @@ public class UriComponentsTests {
 				.build();
 
 		assertEquals("/hotel%20list/Z%C3%BCrich%20specials?q=a%2Bb", uri.expand("a+b").toString());
+	}
+
+	@Test // SPR-17168
+	public void encodeAndExpandWithDollarSign() {
+		UriComponents uri = UriComponentsBuilder.fromPath("/path").queryParam("q", "{value}").encode().build();
+		assertEquals("/path?q=JavaClass%241.class", uri.expand("JavaClass$1.class").toString());
 	}
 
 	@Test

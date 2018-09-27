@@ -48,6 +48,7 @@ import org.springframework.context.i18n.LocaleContext;
 import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
+import org.springframework.core.log.LogFormatUtils;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.lang.Nullable;
 import org.springframework.ui.context.ThemeSource;
@@ -906,7 +907,6 @@ public class DispatcherServlet extends FrameworkServlet {
 	 */
 	@Override
 	protected void doService(HttpServletRequest request, HttpServletResponse response) throws Exception {
-
 		logRequest(request);
 
 		// Keep a snapshot of the request attributes in case of an include,
@@ -952,8 +952,7 @@ public class DispatcherServlet extends FrameworkServlet {
 	}
 
 	private void logRequest(HttpServletRequest request) {
-		if (logger.isDebugEnabled()) {
-
+		LogFormatUtils.traceDebug(logger, traceOn -> {
 			String params;
 			if (isEnableLoggingRequestDetails()) {
 				params = request.getParameterMap().entrySet().stream()
@@ -961,30 +960,28 @@ public class DispatcherServlet extends FrameworkServlet {
 						.collect(Collectors.joining(", "));
 			}
 			else {
-				params = request.getParameterMap().isEmpty() ? "" :  "masked";
+				params = (request.getParameterMap().isEmpty() ? "" :  "masked");
 			}
 
 			String query = StringUtils.isEmpty(request.getQueryString()) ? "" : "?" + request.getQueryString();
+			String dispatchType = (!request.getDispatcherType().equals(DispatcherType.REQUEST) ?
+					"\"" + request.getDispatcherType().name() + "\" dispatch for " : "");
+			String message = (dispatchType + request.getMethod() + " \"" + getRequestUri(request) +
+					query + "\", parameters={" + params + "}");
 
-			String dispatchType = !request.getDispatcherType().equals(DispatcherType.REQUEST) ?
-					"\"" + request.getDispatcherType().name() + "\" dispatch for " : "";
-
-			String message = dispatchType + request.getMethod() +
-					" \"" + getRequestUri(request) + query + "\", parameters={" + params + "}";
-
-			if (logger.isTraceEnabled()) {
+			if (traceOn) {
 				List<String> values = Collections.list(request.getHeaderNames());
 				String headers = values.size() > 0 ? "masked" : "";
 				if (isEnableLoggingRequestDetails()) {
 					headers = values.stream().map(name -> name + ":" + Collections.list(request.getHeaders(name)))
 							.collect(Collectors.joining(", "));
 				}
-				logger.trace(message + ", headers={" + headers + "} in DispatcherServlet '" + getServletName() + "'");
+				return message + ", headers={" + headers + "} in DispatcherServlet '" + getServletName() + "'";
 			}
 			else {
-				logger.debug(message);
+				return message;
 			}
-		}
+		});
 	}
 
 	/**

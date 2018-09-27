@@ -34,7 +34,6 @@ class BeanDefinitionDslTests {
 		val beans = beans {
 			bean<Foo>()
 			bean<Bar>("bar", scope = Scope.PROTOTYPE)
-			bean { Baz(ref()) }
 			bean { Baz(ref("bar")) }
 		}
 
@@ -59,7 +58,6 @@ class BeanDefinitionDslTests {
 				}
 			}
 			profile("baz") {
-				bean { Baz(ref()) }
 				bean { Baz(ref("bar")) }
 			}
 		}
@@ -89,7 +87,6 @@ class BeanDefinitionDslTests {
 				bean { FooFoo(env["name"]!!) }
 			}
 			environment( { activeProfiles.contains("baz") } ) {
-				bean { Baz(ref()) }
 				bean { Baz(ref("bar")) }
 			}
 		}
@@ -133,8 +130,8 @@ class BeanDefinitionDslTests {
 	@Test  // SPR-16269
 	fun `Provide access to the context for allowing calling advanced features like getBeansOfType`() {
 		val beans = beans {
-			bean<Foo>("foo1")
-			bean<Foo>("foo2")
+			bean<Foo>()
+			bean<Foo>()
 			bean { BarBar(context.getBeansOfType<Foo>().values) }
 		}
 
@@ -145,6 +142,19 @@ class BeanDefinitionDslTests {
 
 		val barbar = context.getBean<BarBar>()
 		assertEquals(2, barbar.foos.size)
+	}
+
+	@Test  // SPR-17292
+	fun `Declare beans leveraging constructor injection`() {
+		val beans = beans {
+			bean<Bar>()
+			bean<Baz>()
+		}
+		val context = GenericApplicationContext().apply {
+			beans.initialize(this)
+			refresh()
+		}
+		context.getBean<Baz>()
 	}
 	
 }

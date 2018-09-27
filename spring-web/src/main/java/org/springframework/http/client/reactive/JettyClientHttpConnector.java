@@ -17,6 +17,7 @@
 package org.springframework.http.client.reactive;
 
 import java.net.URI;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.eclipse.jetty.client.HttpClient;
@@ -24,11 +25,11 @@ import org.eclipse.jetty.util.Callback;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import org.springframework.context.SmartLifecycle;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpMethod;
+import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -43,7 +44,7 @@ import org.springframework.util.Assert;
  * @since 5.1
  * @see <a href="https://github.com/jetty-project/jetty-reactive-httpclient">Jetty ReactiveStreams HttpClient</a>
  */
-public class JettyClientHttpConnector implements ClientHttpConnector, SmartLifecycle {
+public class JettyClientHttpConnector implements ClientHttpConnector {
 
 	private final HttpClient httpClient;
 
@@ -51,14 +52,30 @@ public class JettyClientHttpConnector implements ClientHttpConnector, SmartLifec
 
 
 	/**
-	 * Create a Jetty {@link ClientHttpConnector} with the default {@link HttpClient}.
+	 * Default constructor that creates a new instance of {@link HttpClient}.
 	 */
 	public JettyClientHttpConnector() {
 		this(new HttpClient());
 	}
 
 	/**
-	 * Create a Jetty {@link ClientHttpConnector} with the given {@link HttpClient}.
+	 * Constructor with an {@link JettyResourceFactory} that will manage shared resources.
+	 * @param resourceFactory the {@link JettyResourceFactory} to use
+	 * @param customizer the lambda used to customize the {@link HttpClient}
+	 */
+	public JettyClientHttpConnector(JettyResourceFactory resourceFactory, @Nullable Consumer<HttpClient> customizer) {
+		HttpClient httpClient = new HttpClient();
+		httpClient.setExecutor(resourceFactory.getExecutor());
+		httpClient.setByteBufferPool(resourceFactory.getByteBufferPool());
+		httpClient.setScheduler(resourceFactory.getScheduler());
+		if (customizer != null) {
+			customizer.accept(httpClient);
+		}
+		this.httpClient = httpClient;
+	}
+
+	/**
+	 * Constructor with an initialized {@link HttpClient}.
 	 */
 	public JettyClientHttpConnector(HttpClient httpClient) {
 		Assert.notNull(httpClient, "HttpClient is required");
@@ -68,49 +85,6 @@ public class JettyClientHttpConnector implements ClientHttpConnector, SmartLifec
 
 	public void setBufferFactory(DataBufferFactory bufferFactory) {
 		this.bufferFactory = bufferFactory;
-	}
-
-
-	@Override
-	public int getPhase() {
-		return Integer.MAX_VALUE;
-	}
-
-	@Override
-	public boolean isAutoStartup() {
-		return true;
-	}
-
-	@Override
-	public boolean isRunning() {
-		return this.httpClient.isRunning();
-	}
-
-	@Override
-	public void start() {
-		try {
-			// HttpClient is internally synchronized and protected with state checks
-			this.httpClient.start();
-		}
-		catch (Exception ex) {
-			throw new RuntimeException(ex);
-		}
-	}
-
-	@Override
-	public void stop() {
-		try {
-			this.httpClient.stop();
-		}
-		catch (Exception ex) {
-			throw new RuntimeException(ex);
-		}
-	}
-
-	@Override
-	public void stop(Runnable callback) {
-		stop();
-		callback.run();
 	}
 
 
