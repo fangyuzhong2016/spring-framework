@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -71,7 +71,7 @@ public abstract class RouterFunctions {
 
 	/**
 	 * Name of the {@link ServerWebExchange#getAttributes() attribute} that
-	 * contains the matching pattern.
+	 * contains the matching pattern, as a {@link org.springframework.web.util.pattern.PathPattern}.
 	 */
 	public static final String MATCHING_PATTERN_ATTRIBUTE =
 			RouterFunctions.class.getName() + ".matchingPattern";
@@ -486,7 +486,7 @@ public abstract class RouterFunctions {
 		 * {@code OrderController.routerFunction()}.
 		 * to the {@code changeUser} method in {@code userController}:
 		 * <pre class="code">
-		 * RouterFunctionlt;ServerResponsegt; route =
+		 * RouterFunction&lt;ServerResponse&gt; route =
 		 *   RouterFunctions.route()
 		 *     .GET("/users", userController::listUsers)
 		 *     .add(orderController.routerFunction());
@@ -940,8 +940,11 @@ public abstract class RouterFunctions {
 								}
 								return this.routerFunction.route(nestedRequest)
 										.doOnNext(match -> {
-											serverRequest.attributes().clear();
-											serverRequest.attributes().putAll(nestedRequest.attributes());
+											if (nestedRequest != serverRequest) {
+												serverRequest.attributes().clear();
+												serverRequest.attributes()
+														.putAll(nestedRequest.attributes());
+											}
 										});
 							}
 					).orElseGet(Mono::empty);

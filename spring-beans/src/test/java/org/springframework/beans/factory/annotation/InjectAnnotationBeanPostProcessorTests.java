@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -153,6 +153,7 @@ public class InjectAnnotationBeanPostProcessorTests {
 	}
 
 	@Test
+	@SuppressWarnings("deprecation")
 	public void testExtendedResourceInjectionWithAtRequired() {
 		bf.addBeanPostProcessor(new RequiredAnnotationBeanPostProcessor());
 		RootBeanDefinition bd = new RootBeanDefinition(TypedExtendedResourceInjectionBean.class);
@@ -669,7 +670,9 @@ public class InjectAnnotationBeanPostProcessorTests {
 		}
 
 		@Override
-		@Inject @Required
+		@Inject
+		@Required
+		@SuppressWarnings("deprecation")
 		public void setTestBean2(TestBean testBean2) {
 			super.setTestBean2(testBean2);
 		}

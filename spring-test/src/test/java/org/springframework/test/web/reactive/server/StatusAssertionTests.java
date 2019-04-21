@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,6 +17,7 @@
 package org.springframework.test.web.reactive.server;
 
 import java.net.URI;
+import java.time.Duration;
 
 import org.junit.Test;
 import reactor.core.publisher.MonoProcessor;
@@ -32,9 +33,7 @@ import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for {@link StatusAssertions}.
- *
  * @author Rossen Stoyanchev
- * @since 5.0
  */
 public class StatusAssertionTests {
 
@@ -184,7 +183,7 @@ public class StatusAssertionTests {
 		MonoProcessor<byte[]> emptyContent = MonoProcessor.create();
 		emptyContent.onComplete();
 
-		ExchangeResult result = new ExchangeResult(request, response, emptyContent, emptyContent, null);
+		ExchangeResult result = new ExchangeResult(request, response, emptyContent, emptyContent, Duration.ZERO, null);
 		return new StatusAssertions(result, mock(WebTestClient.ResponseSpec.class));
 	}
 

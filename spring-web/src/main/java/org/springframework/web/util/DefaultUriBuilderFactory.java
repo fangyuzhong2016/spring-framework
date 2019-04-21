@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -228,16 +228,14 @@ public class DefaultUriBuilderFactory implements UriBuilderFactory {
 		}
 
 		private UriComponentsBuilder initUriComponentsBuilder(String uriTemplate) {
-
-			if (StringUtils.isEmpty(uriTemplate)) {
-				return baseUri != null ? baseUri.cloneBuilder() : UriComponentsBuilder.newInstance();
-			}
-
 			UriComponentsBuilder result;
-			if (baseUri != null) {
-				UriComponentsBuilder uricBuilder = UriComponentsBuilder.fromUriString(uriTemplate);
-				UriComponents uric = uricBuilder.build();
-				result = uric.getHost() == null ? baseUri.cloneBuilder().uriComponents(uric) : uricBuilder;
+			if (StringUtils.isEmpty(uriTemplate)) {
+				result = baseUri != null ? baseUri.cloneBuilder() : UriComponentsBuilder.newInstance();
+			}
+			else if (baseUri != null) {
+				UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(uriTemplate);
+				UriComponents uri = builder.build();
+				result = uri.getHost() == null ? baseUri.cloneBuilder().uriComponents(uri) : builder;
 			}
 			else {
 				result = UriComponentsBuilder.fromUriString(uriTemplate);

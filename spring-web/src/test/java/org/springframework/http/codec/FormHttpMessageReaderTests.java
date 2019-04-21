@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,6 +16,7 @@
 
 package org.springframework.http.codec;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -26,7 +27,7 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import org.springframework.core.ResolvableType;
-import org.springframework.core.io.buffer.AbstractDataBufferAllocatingTestCase;
+import org.springframework.core.io.buffer.AbstractLeakCheckingTestCase;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -40,7 +41,7 @@ import static org.junit.Assert.*;
 /**
  * @author Sebastien Deleuze
  */
-public class FormHttpMessageReaderTests extends AbstractDataBufferAllocatingTestCase {
+public class FormHttpMessageReaderTests extends AbstractLeakCheckingTestCase {
 
 	private final FormHttpMessageReader reader = new FormHttpMessageReader();
 
@@ -125,6 +126,13 @@ public class FormHttpMessageReaderTests extends AbstractDataBufferAllocatingTest
 					.method(HttpMethod.GET, "/")
 					.header(HttpHeaders.CONTENT_TYPE,  MediaType.APPLICATION_FORM_URLENCODED_VALUE)
 					.body(body);
+	}
+
+	private DataBuffer stringBuffer(String value) {
+		byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+		DataBuffer buffer = this.bufferFactory.allocateBuffer(bytes.length);
+		buffer.write(bytes);
+		return buffer;
 	}
 
 }

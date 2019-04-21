@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -133,8 +133,7 @@ public interface BeanFactory {
 	 * Will ask the parent factory if the bean cannot be found in this factory instance.
 	 * @param name the name of the bean to retrieve
 	 * @return an instance of the bean
-	 * @throws NoSuchBeanDefinitionException if there is no bean definition
-	 * with the specified name
+	 * @throws NoSuchBeanDefinitionException if there is no bean with the specified name
 	 * @throws BeansException if the bean could not be obtained
 	 */
 	Object getBean(String name) throws BeansException;
@@ -225,12 +224,12 @@ public interface BeanFactory {
 	 * Note that collection types are not supported here, in contrast to reflective
 	 * injection points. For programmatically retrieving a list of beans matching a
 	 * specific type, specify the actual bean type as an argument here and subsequently
-	 * use {@link ObjectProvider#toList()} or its lazy streaming/iteration options.
+	 * use {@link ObjectProvider#orderedStream()} or its lazy streaming/iteration options.
 	 * @return a corresponding provider handle
 	 * @since 5.1
-	 * @see ObjectProvider#stream()
 	 * @see ObjectProvider#iterator()
-	 * @see ObjectProvider#toList()
+	 * @see ObjectProvider#stream()
+	 * @see ObjectProvider#orderedStream()
 	 */
 	<T> ObjectProvider<T> getBeanProvider(ResolvableType requiredType);
 

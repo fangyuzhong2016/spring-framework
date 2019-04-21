@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -300,7 +300,7 @@ class DefaultWebTestClient implements WebTestClient {
 		DefaultResponseSpec(WiretapConnector.Info wiretapInfo, ClientResponse response,
 				@Nullable String uriTemplate, Duration timeout) {
 
-			this.exchangeResult = wiretapInfo.createExchangeResult(uriTemplate);
+			this.exchangeResult = wiretapInfo.createExchangeResult(timeout, uriTemplate);
 			this.response = response;
 			this.timeout = timeout;
 		}
@@ -357,13 +357,13 @@ class DefaultWebTestClient implements WebTestClient {
 		@Override
 		public <T> FluxExchangeResult<T> returnResult(Class<T> elementType) {
 			Flux<T> body = this.response.bodyToFlux(elementType);
-			return new FluxExchangeResult<>(this.exchangeResult, body, this.timeout);
+			return new FluxExchangeResult<>(this.exchangeResult, body);
 		}
 
 		@Override
 		public <T> FluxExchangeResult<T> returnResult(ParameterizedTypeReference<T> elementType) {
 			Flux<T> body = this.response.bodyToFlux(elementType);
-			return new FluxExchangeResult<>(this.exchangeResult, body, this.timeout);
+			return new FluxExchangeResult<>(this.exchangeResult, body);
 		}
 	}
 
@@ -479,7 +479,7 @@ class DefaultWebTestClient implements WebTestClient {
 
 		DefaultBodyContentSpec(EntityExchangeResult<byte[]> result) {
 			this.result = result;
-			this.isEmpty = (result.getResponseBody() == null);
+			this.isEmpty = (result.getResponseBody() == null || result.getResponseBody().length == 0);
 		}
 
 		@Override

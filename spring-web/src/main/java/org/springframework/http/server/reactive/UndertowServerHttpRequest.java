@@ -1,11 +1,11 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,6 +23,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.function.IntPredicate;
 import javax.net.ssl.SSLSession;
 
@@ -30,7 +31,6 @@ import io.undertow.connector.ByteBufferPool;
 import io.undertow.connector.PooledByteBuffer;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.Cookie;
-import io.undertow.util.HeaderValues;
 import org.xnio.channels.StreamSourceChannel;
 import reactor.core.publisher.Flux;
 
@@ -79,11 +79,9 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 	}
 
 	private static HttpHeaders initHeaders(HttpServerExchange exchange) {
-		HttpHeaders headers = new HttpHeaders();
-		for (HeaderValues values : exchange.getRequestHeaders()) {
-			headers.put(values.getHeaderName().toString(), values);
-		}
-		return headers;
+		UndertowHeadersAdapter headersMap =
+				new UndertowHeadersAdapter(exchange.getRequestHeaders());
+		return new HttpHeaders(headersMap);
 	}
 
 	@Override
@@ -119,8 +117,7 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 
 	@Override
 	public Flux<DataBuffer> getBody() {
-		return Flux.from(this.body)
-				.doOnDiscard(PooledDataBuffer.class, DataBufferUtils::release);
+		return Flux.from(this.body);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -142,7 +139,6 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 		private final DataBufferFactory bufferFactory;
 
 		private final ByteBufferPool byteBufferPool;
-
 
 		public RequestBodyPublisher(HttpServerExchange exchange, DataBufferFactory bufferFactory) {
 			super(UndertowServerHttpRequest.this.getLogPrefix());
@@ -204,7 +200,12 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 			}
 		}
 
+		@Override
+		protected void discardData() {
+			// Nothing to discard since we pass data buffers on immediately..
+		}
 	}
+
 
 	private static class UndertowDataBuffer implements PooledDataBuffer {
 
@@ -295,6 +296,11 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 		}
 
 		@Override
+		public DataBuffer ensureCapacity(int capacity) {
+			return this.dataBuffer.ensureCapacity(capacity);
+		}
+
+		@Override
 		public byte getByte(int index) {
 			return this.dataBuffer.getByte(index);
 		}
@@ -310,8 +316,7 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 		}
 
 		@Override
-		public DataBuffer read(byte[] destination, int offset,
-				int length) {
+		public DataBuffer read(byte[] destination, int offset, int length) {
 			return this.dataBuffer.read(destination, offset, length);
 		}
 
@@ -326,21 +331,23 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 		}
 
 		@Override
-		public DataBuffer write(byte[] source, int offset,
-				int length) {
+		public DataBuffer write(byte[] source, int offset, int length) {
 			return this.dataBuffer.write(source, offset, length);
 		}
 
 		@Override
-		public DataBuffer write(
-				DataBuffer... buffers) {
+		public DataBuffer write(DataBuffer... buffers) {
 			return this.dataBuffer.write(buffers);
 		}
 
 		@Override
-		public DataBuffer write(
-				ByteBuffer... byteBuffers) {
+		public DataBuffer write(ByteBuffer... byteBuffers) {
 			return this.dataBuffer.write(byteBuffers);
+		}
+
+		@Override
+		public DataBuffer write(CharSequence charSequence, Charset charset) {
+			return this.dataBuffer.write(charSequence, charset);
 		}
 
 		@Override
@@ -373,4 +380,5 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 			return this.dataBuffer.asOutputStream();
 		}
 	}
+
 }

@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -149,8 +149,22 @@ public class ScriptUtilsUnitTests {
 	}
 
 	@Test  // SPR-9531
-	public void readAndSplitScriptContainingMuliLineComments() throws Exception {
+	public void readAndSplitScriptContainingMultiLineComments() throws Exception {
 		String script = readScript("test-data-with-multi-line-comments.sql");
+		List<String> statements = new ArrayList<>();
+		splitSqlScript(script, ';', statements);
+
+		String statement1 = "INSERT INTO users(first_name, last_name) VALUES('Juergen', 'Hoeller')";
+		String statement2 = "INSERT INTO users(first_name, last_name) VALUES( 'Sam' , 'Brannen' )";
+
+		assertEquals("wrong number of statements", 2, statements.size());
+		assertEquals("statement 1 not split correctly", statement1, statements.get(0));
+		assertEquals("statement 2 not split correctly", statement2, statements.get(1));
+	}
+
+	@Test
+	public void readAndSplitScriptContainingMultiLineNestedComments() throws Exception {
+		String script = readScript("test-data-with-multi-line-nested-comments.sql");
 		List<String> statements = new ArrayList<>();
 		splitSqlScript(script, ';', statements);
 

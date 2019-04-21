@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -138,7 +138,7 @@ public class SynchronossPartHttpMessageReader extends LoggingCodecSupport implem
 			MediaType mediaType = headers.getContentType();
 			Assert.state(mediaType != null, "No content type set");
 
-			int length = Math.toIntExact(headers.getContentLength());
+			int length = getContentLength(headers);
 			Charset charset = Optional.ofNullable(mediaType.getCharset()).orElse(StandardCharsets.UTF_8);
 			MultipartContext context = new MultipartContext(mediaType.toString(), length, charset.name());
 
@@ -176,7 +176,12 @@ public class SynchronossPartHttpMessageReader extends LoggingCodecSupport implem
 					listener.onError("Exception thrown while closing the parser", ex);
 				}
 			});
+		}
 
+		private int getContentLength(HttpHeaders headers) {
+			// Until this is fixed https://github.com/synchronoss/nio-multipart/issues/10
+			long length = headers.getContentLength();
+			return (int) length == length ? (int) length : -1;
 		}
 	}
 

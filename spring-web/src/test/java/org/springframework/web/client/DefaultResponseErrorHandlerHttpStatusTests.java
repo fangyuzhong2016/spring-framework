@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,7 +28,6 @@ import org.springframework.http.client.ClientHttpResponse;
 
 import static org.junit.Assert.*;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.mock;
 import static org.springframework.http.HttpStatus.*;
 
 /**
@@ -66,7 +65,7 @@ public class DefaultResponseErrorHandlerHttpStatusTests {
 	public HttpStatus httpStatus;
 
 	@Parameterized.Parameter(1)
-	public Class expectedExceptionClass;
+	public Class<? extends Throwable> expectedExceptionClass;
 
 	private final DefaultResponseErrorHandler handler = new DefaultResponseErrorHandler();
 
@@ -74,7 +73,13 @@ public class DefaultResponseErrorHandlerHttpStatusTests {
 
 
 	@Test
-	public void handleErrorIOException() throws Exception {
+	public void hasErrorTrue() throws Exception {
+		given(this.response.getRawStatusCode()).willReturn(this.httpStatus.value());
+		assertTrue(this.handler.hasError(this.response));
+	}
+
+	@Test
+	public void handleErrorException() throws Exception {
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.TEXT_PLAIN);
 
@@ -89,12 +94,6 @@ public class DefaultResponseErrorHandlerHttpStatusTests {
 			assertEquals("Expected " + this.expectedExceptionClass.getSimpleName(),
 					this.expectedExceptionClass, ex.getClass());
 		}
-	}
-
-	@Test
-	public void hasErrorTrue() throws Exception {
-		given(this.response.getRawStatusCode()).willReturn(HttpStatus.NOT_FOUND.value());
-		assertTrue(handler.hasError(this.response));
 	}
 
 }

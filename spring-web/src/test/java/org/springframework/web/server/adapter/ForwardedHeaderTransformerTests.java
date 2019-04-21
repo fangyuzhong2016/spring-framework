@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,6 +21,7 @@ import java.net.URI;
 import org.junit.Test;
 
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.mock.http.server.reactive.test.MockServerHttpRequest;
 
@@ -32,7 +33,7 @@ import static org.junit.Assert.*;
  */
 public class ForwardedHeaderTransformerTests {
 
-	private static final String BASE_URL = "http://example.com/path";
+	private static final String BASE_URL = "https://example.com/path";
 
 
 	private final ForwardedHeaderTransformer requestMutator = new ForwardedHeaderTransformer();
@@ -84,7 +85,7 @@ public class ForwardedHeaderTransformerTests {
 		headers.add("X-Forwarded-Prefix", "/prefix");
 		ServerHttpRequest request = this.requestMutator.apply(getRequest(headers));
 
-		assertEquals(new URI("http://example.com/prefix/path"), request.getURI());
+		assertEquals(new URI("https://example.com/prefix/path"), request.getURI());
 		assertEquals("/prefix/path", request.getPath().value());
 		assertForwardedHeadersRemoved(request);
 	}
@@ -95,10 +96,27 @@ public class ForwardedHeaderTransformerTests {
 		headers.add("X-Forwarded-Prefix", "/prefix////");
 		ServerHttpRequest request = this.requestMutator.apply(getRequest(headers));
 
-		assertEquals(new URI("http://example.com/prefix/path"), request.getURI());
+		assertEquals(new URI("https://example.com/prefix/path"), request.getURI());
 		assertEquals("/prefix/path", request.getPath().value());
 		assertForwardedHeadersRemoved(request);
 	}
+
+	@Test // SPR-17525
+	public void shouldNotDoubleEncode() throws Exception {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("Forwarded", "host=84.198.58.199;proto=https");
+
+		ServerHttpRequest request = MockServerHttpRequest
+				.method(HttpMethod.GET, new URI("https://example.com/a%20b?q=a%2Bb"))
+				.headers(headers)
+				.build();
+
+		request = this.requestMutator.apply(request);
+
+		assertEquals(new URI("https://84.198.58.199/a%20b?q=a%2Bb"), request.getURI());
+		assertForwardedHeadersRemoved(request);
+	}
+
 
 	private MockServerHttpRequest getRequest(HttpHeaders headers) {
 		return MockServerHttpRequest.get(BASE_URL).headers(headers).build();

@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -135,8 +135,7 @@ public class ModelAttributeMethodArgumentResolver extends HandlerMethodArgumentR
 						BindingResult errors = binder.getBindingResult();
 						if (adapter != null) {
 							return adapter.fromPublisher(errors.hasErrors() ?
-									Mono.error(new WebExchangeBindException(parameter, errors)) :
-									valueMono);
+									Mono.error(new WebExchangeBindException(parameter, errors)) : valueMono);
 						}
 						else {
 							if (errors.hasErrors() && !hasErrorsArgument(parameter)) {
@@ -158,9 +157,7 @@ public class ModelAttributeMethodArgumentResolver extends HandlerMethodArgumentR
 		}
 
 		if (attribute == null) {
-			Class<?> attributeClass = attributeType.getRawClass();
-			Assert.state(attributeClass != null, "No attribute class");
-			return createAttribute(attributeName, attributeClass, context, exchange);
+			return createAttribute(attributeName, attributeType.toClass(), context, exchange);
 		}
 
 		ReactiveAdapter adapterFrom = getAdapterRegistry().getAdapter(null, attribute);
